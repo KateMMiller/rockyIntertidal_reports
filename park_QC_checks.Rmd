@@ -73,25 +73,39 @@ check_null(later_bolt_dist_0)
 check_null(bolt_check_tbl)
 ```
 
-#### Transect Contours
+#### Transect Contour Plots {.tabset}
 ```{r, warning = FALSE, message = FALSE, results = 'hide', include = FALSE}
 #---- Plotting bolt elevation by distance -----
 trans_contour_plots <- purrr::map(locs$Loc_Code, ~plotPITransects(
-  location = ., xlab = "Distance (m)", ylab = "Elevation MLLW (m)", title = TRUE)) 
+  location = ., xlab = "Distance (m)", ylab = "Elevation MLLW (m)", title = TRUE))
 
 #---- Plotting species by elevation -----
-trans_species_plots <- purrr::map(locs$Loc_Code, ~plotPITransectSpecies(
-  location = ., xlab = "Distance (m)", ylab = "Elevation MLLW (m)", title = TRUE, facet = TRUE)) #|>
-  #set_names(locs$Loc_Code)
+trans_species_plots <- purrr::map(locs$Loc_Code, 
+  ~plotPITransectSpecies(location = ., xlab = "Distance (m)", ylab = "Elevation MLLW (m)", title = TRUE, 
+                         facet = TRUE) + 
+    theme(legend.position = 'bottom', 
+          legend.text = element_text(size = 8),
+          legend.key.size = unit(0.2, 'cm'),
+          legend.key.width = unit(0.2, 'cm'),
+          legend.key.height = unit(0.2, 'cm'),
+          legend.title = element_blank())) 
 
 ```
 
-```{r warning = FALSE, message = FALSE, out.width='100%'}
-for(i in seq_along(locs$Loc_Code)) print(trans_contour_plots[[i]])
+```{r warning = FALSE, message = FALSE, fig.height = 14, fig.width = 10, results = 'asis'}
+for(i in seq_along(locs$Loc_Code)){
+   cat("##### ", locs$Loc_Code[[i]], "\n")
+   print(trans_contour_plots[[i]])
+   cat("\n\n")
+}  
 ```
 
-#### Transect Species Plots
-```{r warning = FALSE, message = FALSE, out.width='100%'}
-for(i in seq_along(locs$Loc_Code)) print(trans_species_plots[[i]])
+#### Transect Species Plots {.tabset}
+```{r warning = FALSE, message = FALSE, out.width='100%', out.height = '95%', results = 'asis'}
+for(i in seq_along(locs$Loc_Code)){
+  cat("##### ", locs$Loc_Code[[i]], "\n")
+  print(trans_species_plots[[i]])
+  cat("\n\n") 
+}
 ```
 
