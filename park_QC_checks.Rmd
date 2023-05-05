@@ -92,7 +92,7 @@ trans_species_plots <- purrr::map(locs$Loc_Code,
 
 ```
 
-```{r warning = FALSE, message = FALSE, fig.height = 14, fig.width = 10, results = 'asis'}
+```{r warning = FALSE, message = FALSE, out.width='100%', out.height = '95%', results = 'asis'}
 for(i in seq_along(locs$Loc_Code)){
    cat("##### ", locs$Loc_Code[[i]], "\n")
    print(trans_contour_plots[[i]])
@@ -101,7 +101,7 @@ for(i in seq_along(locs$Loc_Code)){
 ```
 
 #### Transect Species Plots {.tabset}
-```{r warning = FALSE, message = FALSE, out.width='100%', out.height = '95%', results = 'asis'}
+```{r warning = FALSE, message = FALSE, fig.height = 14, fig.width = 10,  results = 'asis'}
 for(i in seq_along(locs$Loc_Code)){
   cat("##### ", locs$Loc_Code[[i]], "\n")
   print(trans_species_plots[[i]])
