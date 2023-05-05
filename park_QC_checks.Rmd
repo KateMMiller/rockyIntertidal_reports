@@ -84,10 +84,10 @@ trans_species_plots <- purrr::map(locs$Loc_Code,
   ~plotPITransectSpecies(location = ., xlab = "Distance (m)", ylab = "Elevation MLLW (m)", title = TRUE, 
                          facet = TRUE) + 
     theme(legend.position = 'bottom', 
-          legend.text = element_text(size = 8),
-          legend.key.size = unit(0.2, 'cm'),
-          legend.key.width = unit(0.2, 'cm'),
-          legend.key.height = unit(0.2, 'cm'),
+          legend.text = element_text(size = 10),
+          legend.key.size = unit(0.5, 'cm'),
+          legend.key.width = unit(0.5, 'cm'),
+          legend.key.height = unit(0.5, 'cm'),
           legend.title = element_blank())) 
 
 ```
@@ -101,7 +101,7 @@ for(i in seq_along(locs$Loc_Code)){
 ```
 
 #### Transect Species Plots {.tabset}
-```{r warning = FALSE, message = FALSE, fig.height = 14, fig.width = 10,  results = 'asis'}
+```{r warning = FALSE, message = FALSE, fig.height = 12, fig.width = 10,  results = 'asis'}
 for(i in seq_along(locs$Loc_Code)){
   cat("##### ", locs$Loc_Code[[i]], "\n")
   print(trans_species_plots[[i]])
