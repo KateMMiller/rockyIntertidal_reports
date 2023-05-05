@@ -1,0 +1,97 @@
+---
+output:
+  html_document:
+    css: www/styles.css
+    anchor_sections: FALSE
+    includes:
+      in_header: "header_manual.html"
+
+params:
+  year_curr: 2021 # Current year of sampling
+  park: "BOHA"
+  all_years: TRUE # If FALSE, only reports on year_curr; TRUE reports on all years
+  
+---
+```{r setup, include = F}
+knitr::opts_chunk$set(echo = FALSE)
+options(knitr.kable.NA = '', scipen = 100)
+```
+
+```{r imports, include = FALSE}
+library(rockyIntertidal)
+library(tidyverse)
+library(knitr)
+library(kableExtra)
+library(htmltools) # for tagList
+
+importData()
+park = params$park
+year_curr = params$year_curr
+year = if(params$all_years == TRUE){2013:year_curr} else {year_curr}
+
+# year = 2013:2021
+# park = "ACAD"
+
+arglist <- list(park = park, years = year)
+
+locs <- do.call(getPIBoltDistance, arglist) |>
+  select(Loc_Code) |> unique() |> c() #|> as.character()
+```
+
+Rocky intertidal Quality Control checking for `r params$park` and `r paste(year, collapse = ", ")` {.tabset .tabset-pills}
+---
+
+```{r, include = F, results = 'hide'}
+source('park_QC_checks_compile.R')
+```
+
+### QC Checks {.tabset}
+#### Summary 
+
+```{r}
+QC_check_table
+```
+
+```{r echo = F, eval = include_visit_table, results = 'asis'}
+cat("#### Compiled Notes", "\n")
+if(include_visit_table == TRUE){
+  visit_table
+}
+```
+
+### Point Intercept Transects {.tabset}
+
+```{r eval = pit_include, results = 'asis'}
+cat("#### QC Checks", "\n")
+```
+
+```{r eval = pit_include}
+check_null(miss_bolt_elev_dist)
+
+check_null(later_bolt_dist_0)
+
+check_null(bolt_check_tbl)
+```
+
+#### Transect Contours
+```{r, warning = FALSE, message = FALSE, results = 'hide', include = FALSE}
+#---- Plotting bolt elevation by distance -----
+trans_contour_plots <- purrr::map(locs$Loc_Code, ~plotPITransects(
+  location = ., xlab = "Distance (m)", ylab = "Elevation MLLW (m)", title = TRUE)) 
+
+#---- Plotting species by elevation -----
+trans_species_plots <- purrr::map(locs$Loc_Code, ~plotPITransectSpecies(
+  location = ., xlab = "Distance (m)", ylab = "Elevation MLLW (m)", title = TRUE, facet = TRUE)) #|>
+  #set_names(locs$Loc_Code)
+
+```
+
+```{r warning = FALSE, message = FALSE, out.width='100%'}
+for(i in seq_along(locs$Loc_Code)) print(trans_contour_plots[[i]])
+```
+
+#### Transect Species Plots
+```{r warning = FALSE, message = FALSE, out.width='100%'}
+for(i in seq_along(locs$Loc_Code)) print(trans_species_plots[[i]])
+```
+
