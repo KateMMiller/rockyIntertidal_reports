@@ -114,10 +114,83 @@ QC_table <- rbind(QC_table,
 
 bolt_check_tbl <- make_kable(bolt_checks, "Impossible bolt elevation and distance combinations.")
 
-# Check if Vertical Transect tab returned any records to determine whether to plot that tab in report
+# Check if Point Intercept tab returned any records to determine whether to plot that tab in report
 pit_check <- QC_table |> filter(Data %in% "PI Transect" & Num_Records > 0)
 
 pit_include <- tab_include(pit_check)
+
+
+#---- Photoplot checks ----
+pctcov <- do.call(getPhotoCover, arglist) |>
+  mutate(sampID1 = paste(Site_Code, Loc_Code, Year, sep = "_"),
+         sampID = ifelse(QAQC == TRUE, paste0(sampID1, "_Q"), sampID1)) |>
+  select(sampID, Site_Code, Loc_Code, Start_Date, Year, QAQC, Plot_Name, Target_Species,
+         Spp_Code, Category, Perc_Cover, Notes)
+
+table(pctcov$sampID, pctcov$Target_Species)
+
+# Check for photoplots that have been sampled before but are missing in at least one survey
+# Or that have duplicate data
+
+# location/plot name combinations found in data to check for missing
+sample_combos <- pctcov |> select(Site_Code, Loc_Code, Target_Species, Plot_Name) |> unique() |>
+  group_by(Site_Code, Loc_Code, Target_Species) |>
+  summarize(num_plots = sum(!is.na(Plot_Name)),
+            .groups = 'drop')
+
+plot_check1 <- as.data.frame(table(pctcov$sampID, pctcov$Target_Species)) |>
+  filter(Freq < 130 | Freq > 130) |> mutate(sampID = as.character(Var1), # 5 plots * 26 species = 130
+                               Target_Species = as.character(Var2),
+                               numplots = as.numeric(Freq)) |>
+  select(sampID, Target_Species, numplots) |>
+  mutate(Loc_Code = substr(sampID, 6, 11),
+         Year = as.numeric(substr(sampID, 13, 16)))
+
+plot_check <- left_join(sample_combos |> select(-num_plots),
+                        plot_check1,
+                        by = c("Loc_Code", "Target_Species")) |>
+              filter(!is.na(numplots)) |>
+              select(Site_Code, Loc_Code, Year, Target_Species, numplots)
+
+QC_table <- rbind(QC_table,
+                  QC_check(plot_check, "Photoplots", "Photoplots either missing scores or having duplicate scores."))
+
+photoplot_tbl <- make_kable(plot_check, "Photoplots either missing scores or with duplicate scores. Will only return missing target species plots that have been sampled at least one year in a given location.")
+
+# Check that each site has the same species list, and species not detected have a 0 for Perc_Cover.
+#++++++++++ ENDED HERE- I don't think this check is actually finding the missing spp. Seems to be returning too many results.
+spp_combos <- pctcov |> select(Site_Code, Loc_Code, Spp_Code, Plot_Name) |> unique() |>
+  group_by(Site_Code, Loc_Code, Spp_Code) |>
+  summarize(numplots_max = sum(!is.na(Plot_Name)),
+            .groups = 'drop')
+
+spp_check1 <- as.data.frame(table(pctcov$sampID, pctcov$Spp_Code)) |>
+  filter(Freq < 26 | Freq > 26) |> mutate(sampID = as.character(Var1), # 5 plots * 26 species = 130
+                                          Spp_Code = as.character(Var2),
+                                          numplots_samp = as.numeric(Freq)) |>
+  select(sampID, Spp_Code, numplots_samp) |>
+  mutate(Loc_Code = substr(sampID, 6, 11),
+         Year = as.numeric(substr(sampID, 13, 16)))
+
+spp_check <- left_join(spp_combos,
+                        spp_check1,
+                        by = c("Loc_Code", "Spp_Code")) |>
+  filter(!is.na(numplots_samp)) |>
+  select(Site_Code, Loc_Code, Year, Spp_Code, numplots_max, numplots_samp) |>
+  filter(numplots_max != numplots_samp)
+
+QC_table <- rbind(QC_table,
+                  QC_check(spp_check, "Photoplots",
+                           "Photoplots either missing a species % cover or having duplicate percent cover."))
+
+spp_plot_tbl <- make_kable(spp_check, "Photoplots either missing a species % cover or having duplicate percent cover. Will only return missing species for plotoplots that have been sampled at least one year in a given location.")
+
+# Check for NAs in Perc_Cover field
+
+# Check if Point Intercept tab returned any records to determine whether to plot that tab in report
+photoplot_check <- QC_table |> filter(Data %in% "Photoplots" & Num_Records > 0)
+
+photoplot_include <- tab_include(photoplot_check)
 
 #---- Final QC check table ----
 QC_check_table <- kable(QC_table, format = 'html', align = 'c', caption = "QC checking results",

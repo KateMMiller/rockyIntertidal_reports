@@ -8,7 +8,7 @@ output:
 
 params:
   year_curr: 2021 # Current year of sampling
-  park: "BOHA"
+  park: "ACAD"
   all_years: TRUE # If FALSE, only reports on year_curr; TRUE reports on all years
   
 ---
@@ -109,3 +109,23 @@ for(i in seq_along(locs$Loc_Code)){
 }
 ```
 
+```{r eval = photoplot_include, results = 'asis'}
+cat("### Photoplots", "\n")
+
+check_null(photoplot_tbl)
+
+check_null(spp_plot_tbl)
+```
+
+
+### Recruitment Plots
+
+No checks added yet
+
+### Temperature Loggers
+
+No checks added yet
+
+### Band Transects
+
+No checks added yet
