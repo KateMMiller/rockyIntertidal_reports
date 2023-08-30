@@ -45,6 +45,33 @@ Rocky intertidal Quality Control checking for `r params$park` and `r paste(year,
 source('park_QC_checks_compile.R')
 ```
 
+```{r, warning = FALSE, message = FALSE, results = 'hide', include = FALSE}
+#---- Plotting bolt elevation by distance -----
+trans_contour_plots <- 
+  purrr::map(locs$Loc_Code, 
+             ~plotPITransects(
+               location = ., xlab = "Distance (m)", ylab = "Elevation MLLW (m)", title = TRUE, years = 2013:year_curr))
+
+#---- Plotting species by elevation -----
+trans_species_plots <- 
+  purrr::map(locs$Loc_Code,
+             ~plotPITransectSpecies(location = ., xlab = "Year", ylab = "Elevation MLLW (m)", 
+                                    title = TRUE, years = 2013:year_curr) +
+    theme(legend.position = 'bottom',
+          legend.text = element_text(size = 10),
+          legend.key.size = unit(0.5, 'cm'),
+          legend.key.width = unit(0.5, 'cm'),
+          legend.key.height = unit(0.5, 'cm'),
+          legend.title = element_blank()))
+
+#---- Plotting photoplot cover by target species and site ----
+photo_species_plots <- purrr::map(locs$Loc_Code,
+  ~plotPhotoCover(location = ., top_spp = 3, years = 2013:year_curr)                                
+  )
+
+```
+
+
 ### QC Checks {.tabset}
 #### Summary 
 
@@ -74,23 +101,6 @@ check_null(bolt_check_tbl)
 ```
 
 #### Transect Contour Plots {.tabset}
-```{r, warning = FALSE, message = FALSE, results = 'hide', include = FALSE}
-#---- Plotting bolt elevation by distance -----
-trans_contour_plots <- purrr::map(locs$Loc_Code, ~plotPITransects(
-  location = ., xlab = "Distance (m)", ylab = "Elevation MLLW (m)", title = TRUE))
-
-#---- Plotting species by elevation -----
-trans_species_plots <- purrr::map(locs$Loc_Code, 
-  ~plotPITransectSpecies(location = ., xlab = "Distance (m)", ylab = "Elevation MLLW (m)", title = TRUE, 
-                         facet = TRUE) + 
-    theme(legend.position = 'bottom', 
-          legend.text = element_text(size = 10),
-          legend.key.size = unit(0.5, 'cm'),
-          legend.key.width = unit(0.5, 'cm'),
-          legend.key.height = unit(0.5, 'cm'),
-          legend.title = element_blank())) 
-
-```
 
 ```{r warning = FALSE, message = FALSE, out.width='100%', out.height = '95%', results = 'asis'}
 for(i in seq_along(locs$Loc_Code)){
@@ -104,19 +114,35 @@ for(i in seq_along(locs$Loc_Code)){
 ```{r warning = FALSE, message = FALSE, fig.height = 12, fig.width = 10,  results = 'asis'}
 for(i in seq_along(locs$Loc_Code)){
   cat("##### ", locs$Loc_Code[[i]], "\n")
+  cat("Point Intercept species by elevation. Points are median elevation across 3 transects. 
+       Wider lines are the middle 25% and 75% quartiles. Thin lines are minimum and maximum elevations 
+       recorded for a given species.", "\n")
   print(trans_species_plots[[i]])
   cat("\n\n") 
 }
 ```
 
+### Photoplots {.tabset}
+
+#### QC Checks {.tabset}
 ```{r eval = photoplot_include, results = 'asis'}
-cat("### Photoplots", "\n")
 
 check_null(photoplot_tbl)
 
 check_null(spp_plot_tbl)
 ```
 
+#### Photoplot Species Plots {.tabset}
+```{r warning = FALSE, message = FALSE, fig.height = 12, fig.width = 10,  results = 'asis'}
+for(i in seq_along(locs$Loc_Code)){
+  cat("##### ", locs$Loc_Code[[i]], "\n")
+  cat("Species percent cover by target species group. Points are median cover across photoplots. 
+       Error bars are minimum and maximum cover recorded within a target species. Only top 3 species
+       are plotted in each target species group, with tied species included.", "\n")
+  print(photo_species_plots[[i]])
+  cat("\n\n") 
+}
+```
 
 ### Recruitment Plots
 

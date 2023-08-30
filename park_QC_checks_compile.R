@@ -158,7 +158,6 @@ QC_table <- rbind(QC_table,
 photoplot_tbl <- make_kable(plot_check, "Photoplots either missing scores or with duplicate scores. Will only return missing target species plots that have been sampled at least one year in a given location.")
 
 # Check that each site has the same species list, and species not detected have a 0 for Perc_Cover.
-#++++++++++ ENDED HERE- I don't think this check is actually finding the missing spp. Seems to be returning too many results.
 spp_combos <- pctcov |> select(Site_Code, Loc_Code, Spp_Code, Plot_Name) |> unique() |>
   group_by(Site_Code, Loc_Code, Spp_Code) |>
   summarize(numplots_max = sum(!is.na(Plot_Name)),
@@ -181,11 +180,13 @@ spp_check <- left_join(spp_combos,
 
 QC_table <- rbind(QC_table,
                   QC_check(spp_check, "Photoplots",
-                           "Photoplots either missing a species % cover or having duplicate percent cover."))
+                           "Photoplots either missing a species % cover that was recorded in a past survey or having duplicate percent cover."))
 
-spp_plot_tbl <- make_kable(spp_check, "Photoplots either missing a species % cover or having duplicate percent cover. Will only return missing species for plotoplots that have been sampled at least one year in a given location.")
+spp_plot_tbl <- make_kable(spp_check, "Photoplots either missing a species % cover that was recorded in a past survey or having duplicate percent cover. Will only return missing species for plotoplots that have been sampled at least one year in a given location.")
 
 # Check for NAs in Perc_Cover field
+
+head(pctcov)
 
 # Check if Point Intercept tab returned any records to determine whether to plot that tab in report
 photoplot_check <- QC_table |> filter(Data %in% "Photoplots" & Num_Records > 0)

@@ -1,0 +1,180 @@
+---
+output:
+  html_document:
+    css: www/styles.css
+    anchor_sections: FALSE
+    includes:
+      in_header: "header_manual.html"
+
+params:
+  year_curr: 2021
+  park: "ACAD"
+  all_years: TRUE # If FALSE, only reports on year_curr; TRUE reports on all years
+---
+
+```{r setup, include = F}
+knitr::opts_chunk$set(echo = FALSE)
+options(knitr.kable.NA = '', scipen = 100)
+```
+
+```{r imports, include = FALSE}
+library(rockyIntertidal)
+library(tidyverse)
+library(knitr)
+library(kableExtra)
+library(htmltools) # for tagList
+```
+
+```{r imports2, include = FALSE, cache = T}
+importData()
+importWaterTemp(path = "../data/rocky/temp_data/Compiled_HT_water_temps/")
+```
+
+```{r params, includ = FALSE}
+# park = "BOHA"
+# year_curr = 2021
+# years = 2013:2021
+
+park = params$park
+year_curr = params$year_curr
+years = if(params$all_years == TRUE){2013:year_curr} else {year_curr}
+
+arglist <- list(park = park, years = years)
+
+locs <- do.call(getPIBoltDistance, arglist) |>
+  select(Loc_Code) |> arrange(Loc_Code) |> unique() |> c() #|> as.character()
+
+trans_species <- do.call(getPISppDetections, arglist) |> 
+  select(Spp_Code) |> arrange(Spp_Code) |> unique() |> 
+  filter(!Spp_Code %in% c("BOLT", "ROCK", "WATER", NA, "OTHSUB", "OTHINV", "UNIDEN")) |> 
+  c()
+
+trans_species_com <- switch(park, 
+                            "ACAD" = c("ALGGRE", "ALGRED", "ARTCOR", "ASCEPI", "ASCNOD", "BARSPP", 
+                                      "CHOMAS", "CRUCOR", "FUCEPI", "FUCSPP", "MUSSPP", "ULVLAC"),
+                            "BOHA" = c("ALGGRE", "ALGRED", "ASCEPI", "ASCNOD", "BARSPP", 
+                                       "CHOMAS", "FUCEPI", "FUCSPP", "ULVLAC")
+                       )
+
+```
+
+Rocky intertidal data summary for `r params$park` and `r paste(years, collapse = ", ")` {.tabset .tabset-pills}
+---
+
+```{r, warning = FALSE, message = FALSE, results = 'hide', include = FALSE}
+#---- Plotting all species by elevation per location -----
+trans_species_plots <- 
+  purrr::map(locs$Loc_Code,
+             ~plotPITransectSpecies(location = ., xlab = "Year", ylab = "Elevation MLLW (m)", 
+                                    title = TRUE, facet = TRUE, years = years, rev_axis = F) +
+    theme(legend.position = 'bottom',
+          legend.text = element_text(size = 10),
+          legend.key.size = unit(0.5, 'cm'),
+          legend.key.width = unit(0.5, 'cm'),
+          legend.key.height = unit(0.5, 'cm'),
+          legend.title = element_blank()))
+
+#---- Plotting individual PI transect species across all locations -----
+trans_species_plots_park <- 
+  purrr::map(trans_species_com, 
+             ~ plotPITransectSpecies(park = park, location = 'all', xlab = 'Year', ylab = "Elevation MLLW (m)",
+                                     species = ., title = FALSE, facet = TRUE, years = years, rev_axis = F))
+
+#---- Plotting photoplot cover by target species and site ----
+photo_species_plots <- purrr::map(locs$Loc_Code,
+  ~plotPhotoCover(location = ., top_spp = 3, years = years)                                
+  )
+
+#---- Plotting individual photoplot target species across all locations
+targ_spp <- switch(park, 
+                   "ACAD" = c("Barnacle", "Fucus", "Ascophyllum", "Red Algae", "Mussel"),
+                   "BOHA" = c("Barnacle", "Fucus", "Ascophyllum", "Red Algae"))
+                   
+
+photo_species_plots_park <- purrr::map(targ_spp,
+  ~plotPhotoCover(park = park, location = 'all', target_species = ., top_spp = 3, years = years)                                
+  )
+
+#---- Plotting water temp data by site -----
+water_temp_plots <- purrr::map(locs$Loc_Code,
+  ~plotWaterTemp(location = ., years = years, palette = 'black')
+  )
+
+#---- Plotting water temp of all sites ----
+water_temp_plots_year <- purrr::map(years,
+  ~plotWaterTemp(park = park, location = 'all', years = ., palette = 'viridis',
+                 facet = F))
+
+```
+
+### Point Intercept Transects {.tabset}
+#### By Location {.tabset}
+```{r warning = FALSE, message = FALSE, fig.height = 8, fig.width = 10, results = 'asis'}
+for(i in seq_along(locs$Loc_Code)){
+  cat("##### ", locs$Loc_Code[[i]], "\n")
+  cat("Point Intercept species by elevation. Points are median elevation across 3 transects. 
+       Wider lines are the middle 25% and 75% quantiles. Thin lines are minimum and maximum elevations 
+       recorded for a given species.", "\n")
+  print(trans_species_plots[[i]])
+  cat("\n\n") 
+}
+```
+
+#### By Species {.tabset}
+```{r warning = FALSE, message = FALSE, fig.height = 8, fig.width = 10, results = 'asis'}
+for(i in seq_along(trans_species_com)){
+  cat("##### ", trans_species_com[[i]], "\n")
+  cat("Point Intercept species by elevation across locations. Points are median elevation across 3 transects.
+      Wilder lines are the middle 25% and 75% quantiles. Thin lines are minimum and maximum elevations
+      recorded for a given species.", "\n")
+  print(trans_species_plots_park[[i]])
+  cat("\n\n")
+}
+```
+
+
+### Photoplots {.tabset}
+#### By Location {.tabset}
+```{r warning = FALSE, message = FALSE, fig.height = 8, fig.width = 10, results = 'asis'}
+for(i in seq_along(locs$Loc_Code)){
+  cat("##### ", locs$Loc_Code[[i]], "\n")
+  cat("Species percent cover by target species group. Points are median cover across photoplots. 
+       Error bars are minimum and maximum cover recorded within a target species. Only top 3 species
+       are plotted in each target species group, with tied species included.", "\n")
+  print(photo_species_plots[[i]])
+  cat("\n\n") 
+}
+```
+
+#### By Target Species {.tabset}
+```{r warning = FALSE, message = FALSE, fig.height = 8, fig.width = 10, results = 'asis'}
+for(i in seq_along(targ_spp)){
+  cat("##### ", targ_spp[[i]], "\n")
+  cat("Species percent cover by target species group across all lcoations. Points are median cover across photoplots. 
+       Error bars are minimum and maximum cover recorded within a target species. Only top 3 species
+       are plotted in each target species group, with tied species included.", "\n")
+  print(photo_species_plots_park[[i]])
+  cat("\n\n") 
+}
+```
+
+### Temperature Loggers {.tabset}
+#### By Location {.tabset}
+```{r warning = FALSE, message = FALSE, fig.height = 8, fig.width = 10, results = 'asis'}
+for(i in seq_along(locs$Loc_Code)){
+  cat("##### ", locs$Loc_Code[[i]], "\n")
+  cat("Water temperature recorded closest to each high tide event per day in degrees F.", "\n")
+  print(water_temp_plots[[i]])
+  cat("\n\n") 
+}
+```
+
+#### By Year {.tabset}
+```{r warning = FALSE, message = FALSE, fig.height = 8, fig.width = 10, results = 'asis'}
+for(i in seq_along(years)){
+  cat("##### ", years[[i]], "\n")
+  cat("Water temperature recorded closest to each high tide event per day in degrees F by year.", "\n")
+  print(water_temp_plots_year[[i]])
+  cat("\n\n") 
+}
+```
