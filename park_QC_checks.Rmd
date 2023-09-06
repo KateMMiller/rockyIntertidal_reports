@@ -56,7 +56,7 @@ trans_contour_plots <-
 trans_species_plots <- 
   purrr::map(locs$Loc_Code,
              ~plotPITransectSpecies(location = ., xlab = "Year", ylab = "Elevation MLLW (m)", 
-                                    title = TRUE, years = 2013:year_curr) +
+                                    title = TRUE, years = 2013:year_curr, facet = T) +
     theme(legend.position = 'bottom',
           legend.text = element_text(size = 10),
           legend.key.size = unit(0.5, 'cm'),
