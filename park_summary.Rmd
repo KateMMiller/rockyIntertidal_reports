@@ -80,6 +80,10 @@ trans_species_plots_park <-
              ~ plotPITransectSpecies(park = park, location = 'all', xlab = 'Year', ylab = "Elevation MLLW (m)",
                                      species = ., title = FALSE, facet = TRUE, years = years, rev_axis = F))
 
+#---- Plotting main 5 species for PI transects with plotly -----
+trans_spp_plotly <- plotPITransectSpecies(park = park, years = years, title = F, xlab = NULL, #facet = F,
+                      main_groups = T, rev_axis = F, plotly = T, ribbon = T)
+
 #---- Plotting photoplot cover by target species and site ----
 photo_species_plots <- purrr::map(locs$Loc_Code,
   ~plotPhotoCover(location = ., top_spp = 3, years = years)                                
@@ -97,7 +101,7 @@ photo_species_plots_park <- purrr::map(targ_spp,
 
 #---- Plotting water temp data by site -----
 water_temp_plots <- purrr::map(locs$Loc_Code,
-  ~plotWaterTemp(location = ., years = years, palette = 'black')
+  ~plotWaterTemp(location = ., years = years, palette = 'black')#, plot_tmin = TRUE, plot_tmax = TRUE)
   )
 
 #---- Plotting water temp of all sites ----
@@ -108,6 +112,14 @@ water_temp_plots_year <- purrr::map(years,
 ```
 
 ### Point Intercept Transects {.tabset}
+
+#### By Main Species {.tabset}
+Point Intercept species by elevation across locations. Points are median elevation across 3 transects. 
+Bands lower 25% and upper 75% distributions across 3 transects for the primary species of concern. In the legend, Ascophyllum nodosum (Knotted wrack) is abbreviated as ASCNOD, Barnacles are abbreviated as BARSPP, Fucus spp. (Rockweed) is abbreviated as FUCSPP, Mussels are abbreviated as MUSSPP, and red algae are abbreviated as REDGRP. The red algae group includes Irish moss (Chondrus / Mastocarpus) and algae identified as Other Algae - Red. 
+```{r fig.height = 8, fig.width = 10}
+trans_spp_plotly
+```
+
 #### By Location {.tabset}
 ```{r warning = FALSE, message = FALSE, fig.height = 8, fig.width = 10, results = 'asis'}
 for(i in seq_along(locs$Loc_Code)){
@@ -131,7 +143,6 @@ for(i in seq_along(trans_species_com)){
   cat("\n\n")
 }
 ```
-
 
 ### Photoplots {.tabset}
 #### By Location {.tabset}
