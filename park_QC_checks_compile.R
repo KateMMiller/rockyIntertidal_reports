@@ -105,7 +105,7 @@ QC_table <- rbind(QC_table,
 later_bolt_dist_0 <- make_kable(bolt_dist_0, "Bolts with distance of 0 after the first transect bolt.")
 
 # Check for impossible elevation and distance combinations between bolts (forces NANs in arcsin calc)
-spp_pi <- do.call(sumPISppDetections, arglist) |>
+spp_pi <- do.call(sumPISpecies, arglist) |>
   group_by(Loc_Code, Spp_Code, Spp_Name) |>
   summarize(num_pis = sum(!is.na(PI_Distance)), .groups = 'drop')
 
