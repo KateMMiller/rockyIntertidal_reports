@@ -44,7 +44,7 @@ arglist <- list(park = park, years = years)
 locs <- do.call(getPIBoltDistance, arglist) |>
   select(Loc_Code) |> arrange(Loc_Code) |> unique() |> c() #|> as.character()
 
-trans_species <- do.call(getPISppDetections, arglist) |> 
+trans_species <- do.call(getPISpecies, arglist) |> 
   select(Spp_Code) |> arrange(Spp_Code) |> unique() |> 
   filter(!Spp_Code %in% c("BOLT", "ROCK", "WATER", NA, "OTHSUB", "OTHINV", "UNIDEN")) |> 
   c()
@@ -65,7 +65,7 @@ Rocky intertidal data summary for `r params$park` and `r paste(years, collapse =
 #---- Plotting all species by elevation per location -----
 trans_species_plots <- 
   purrr::map(locs$Loc_Code,
-             ~plotPITransectSpecies(location = ., xlab = "Year", ylab = "Elevation MLLW (m)", 
+             ~plotPISpecies(location = ., xlab = "Year", ylab = "Elevation MLLW (m)", 
                                     title = TRUE, facet = TRUE, years = years, rev_axis = F) +
     theme(legend.position = 'bottom',
           legend.text = element_text(size = 10),
@@ -77,11 +77,11 @@ trans_species_plots <-
 #---- Plotting individual PI transect species across all locations -----
 trans_species_plots_park <- 
   purrr::map(trans_species_com, 
-             ~ plotPITransectSpecies(park = park, location = 'all', xlab = 'Year', ylab = "Elevation MLLW (m)",
+             ~ plotPISpecies(park = park, location = 'all', xlab = 'Year', ylab = "Elevation MLLW (m)",
                                      species = ., title = FALSE, facet = TRUE, years = years, rev_axis = F))
 
 #---- Plotting main 5 species for PI transects with plotly -----
-trans_spp_plotly <- plotPITransectSpecies(park = park, years = years, title = F, xlab = NULL, #facet = F,
+trans_spp_plotly <- plotPISpecies(park = park, years = years, title = F, xlab = NULL, #facet = F,
                       main_groups = T, rev_axis = F, plotly = T, ribbon = T)
 
 #---- Plotting photoplot cover by target species and site ----
