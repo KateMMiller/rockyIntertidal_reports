@@ -20,25 +20,26 @@ options(knitr.kable.NA = '', scipen = 100)
 ```{r imports, include = FALSE}
 library(rockyIntertidal)
 library(tidyverse)
-library(knitr)
-library(kableExtra)
-library(htmltools) # for tagList
 ```
 
 ```{r imports2, include = FALSE, cache = T}
 importData()
-importWaterTemp(path = "../data/rocky/temp_data/Compiled_HT_water_temps/")
+path = "../data/rocky/temp_data/Compiled_HT_water_temps/"
+importWaterTemp(path = path, simplify = T, buoy = T)
 ```
 
 ```{r params, includ = FALSE}
-# park = "BOHA"
+# park = "ACAD"
 # year_curr = 2021
 # years = 2013:2021
+
+test = TRUE
 
 park = params$park
 year_curr = params$year_curr
 years = if(params$all_years == TRUE){2013:year_curr} else {year_curr}
 
+# Set up args list
 arglist <- list(park = park, years = years)
 
 locs <- do.call(getPIBoltDistance, arglist) |>
@@ -61,11 +62,11 @@ trans_species_com <- switch(park,
 Rocky intertidal data summary for `r params$park` and `r paste(years, collapse = ", ")` {.tabset .tabset-pills}
 ---
 
-```{r, warning = FALSE, message = FALSE, results = 'hide', include = FALSE}
+```{r, warning = FALSE, message = FALSE, results = 'hide', include = FALSE, eval = test}
 #---- Plotting all species by elevation per location -----
 trans_species_plots <- 
   purrr::map(locs$Loc_Code,
-             ~plotPISpecies(location = ., xlab = "Year", ylab = "Elevation MLLW (m)", 
+             ~plotPISpecies(location = ., xlab = "Year", ylab = "Elevation MLLW (m)", species = 'all',
                                     title = TRUE, facet = TRUE, years = years, rev_axis = F) +
     theme(legend.position = 'bottom',
           legend.text = element_text(size = 10),
@@ -73,55 +74,76 @@ trans_species_plots <-
           legend.key.width = unit(0.5, 'cm'),
           legend.key.height = unit(0.5, 'cm'),
           legend.title = element_blank()))
-
+```
+```{r, warning = FALSE, message = FALSE, results = 'hide', include = FALSE, eval = test}
 #---- Plotting individual PI transect species across all locations -----
 trans_species_plots_park <- 
   purrr::map(trans_species_com, 
              ~ plotPISpecies(park = park, location = 'all', xlab = 'Year', ylab = "Elevation MLLW (m)",
                                      species = ., title = FALSE, facet = TRUE, years = years, rev_axis = F))
-
+```
+```{r, warning = FALSE, message = FALSE, results = 'hide', include = FALSE, eval = test}
 #---- Plotting main 5 species for PI transects with plotly -----
 trans_spp_plotly <- plotPISpecies(park = park, years = years, title = F, xlab = NULL, #facet = F,
-                      main_groups = T, rev_axis = F, plotly = T, ribbon = T)
-
+                      species = 'all', main_groups = T, rev_axis = F, plotly = T, ribbon = T)
+```
+```{r, warning = FALSE, message = FALSE, results = 'hide', include = FALSE, eval = test}
 #---- Plotting photoplot cover by target species and site ----
 photo_species_plots <- purrr::map(locs$Loc_Code,
-  ~plotPhotoCover(location = ., top_spp = 3, years = years)                                
+  ~plotPhotoCover(location = ., species = 'all', top_spp = 3, years = years)                                
   )
-
+```
+```{r, warning = FALSE, message = FALSE, results = 'hide', include = FALSE, eval = test}
 #---- Plotting individual photoplot target species across all locations
 targ_spp <- switch(park, 
                    "ACAD" = c("Barnacle", "Fucus", "Ascophyllum", "Red Algae", "Mussel"),
                    "BOHA" = c("Barnacle", "Fucus", "Ascophyllum", "Red Algae"))
                    
-
+```
+```{r, warning = FALSE, message = FALSE, results = 'hide', include = FALSE, eval = test}
 photo_species_plots_park <- purrr::map(targ_spp,
-  ~plotPhotoCover(park = park, location = 'all', target_species = ., top_spp = 3, years = years)                                
+  ~plotPhotoCover(park = park, location = 'all', target_species = ., 
+                  top_spp = 3, species = 'all', years = years)                                
   )
 
+```
+```{r, warning = FALSE, message = FALSE, results = 'hide', include = FALSE, eval = test}
+photo_species_heatmap <- purrr::map(locs$Loc_Code,
+  ~plotPhotoCover(park = park, location = ., heatmap = TRUE, main_groups = T, years = years))
+
+```
+```{r, warning = FALSE, message = FALSE, results = 'hide', include = FALSE}
 #---- Plotting water temp data by site -----
 water_temp_plots <- purrr::map(locs$Loc_Code,
-  ~plotWaterTemp(location = ., years = years, palette = 'black')#, plot_tmin = TRUE, plot_tmax = TRUE)
+  ~plotWaterTemp(location = ., years = years, palette = 'black', plotly = T)
   )
-
+```
+```{r, warning = FALSE, message = FALSE, results = 'hide', include = FALSE}
 #---- Plotting water temp of all sites ----
 water_temp_plots_year <- purrr::map(years,
   ~plotWaterTemp(park = park, location = 'all', years = ., palette = 'viridis',
-                 facet = F))
-
+                 facet = F, plotly = T))
 ```
+
+```{r, warning = FALSE, message = FALSE, results = 'hide', include = FALSE}
+#---- Plotting buoy data of each years for a park ----
+buoy_plots_year <- purrr::map(years, 
+                              ~plotBuoyData(park = park, years = ., metric = 'all',
+                                            facet_col = 1))
+```
+
 
 ### Point Intercept Transects {.tabset}
 
 #### By Main Species {.tabset}
 Point Intercept species by elevation across locations. Points are median elevation across 3 transects. 
 Bands lower 25% and upper 75% distributions across 3 transects for the primary species of concern. In the legend, Ascophyllum nodosum (Knotted wrack) is abbreviated as ASCNOD, Barnacles are abbreviated as BARSPP, Fucus spp. (Rockweed) is abbreviated as FUCSPP, Mussels are abbreviated as MUSSPP, and red algae are abbreviated as REDGRP. The red algae group includes Irish moss (Chondrus / Mastocarpus) and algae identified as Other Algae - Red. 
-```{r fig.height = 8, fig.width = 10}
+```{r fig.height = 8, fig.width = 10, eval = test}
 trans_spp_plotly
 ```
 
 #### By Location {.tabset}
-```{r warning = FALSE, message = FALSE, fig.height = 8, fig.width = 10, results = 'asis'}
+```{r warning = FALSE, message = FALSE, fig.height = 8, fig.width = 10, results = 'asis', eval = test}
 for(i in seq_along(locs$Loc_Code)){
   cat("##### ", locs$Loc_Code[[i]], "\n")
   cat("Point Intercept species by elevation. Points are median elevation across 3 transects. 
@@ -133,7 +155,7 @@ for(i in seq_along(locs$Loc_Code)){
 ```
 
 #### By Species {.tabset}
-```{r warning = FALSE, message = FALSE, fig.height = 8, fig.width = 10, results = 'asis'}
+```{r warning = FALSE, message = FALSE, fig.height = 8, fig.width = 10, results = 'asis', eval = test}
 for(i in seq_along(trans_species_com)){
   cat("##### ", trans_species_com[[i]], "\n")
   cat("Point Intercept species by elevation across locations. Points are median elevation across 3 transects.
@@ -145,8 +167,9 @@ for(i in seq_along(trans_species_com)){
 ```
 
 ### Photoplots {.tabset}
+
 #### By Location {.tabset}
-```{r warning = FALSE, message = FALSE, fig.height = 8, fig.width = 10, results = 'asis'}
+```{r warning = FALSE, message = FALSE, fig.height = 8, fig.width = 10, results = 'asis', eval = test}
 for(i in seq_along(locs$Loc_Code)){
   cat("##### ", locs$Loc_Code[[i]], "\n")
   cat("Species percent cover by target species group. Points are median cover across photoplots. 
@@ -158,7 +181,7 @@ for(i in seq_along(locs$Loc_Code)){
 ```
 
 #### By Target Species {.tabset}
-```{r warning = FALSE, message = FALSE, fig.height = 8, fig.width = 10, results = 'asis'}
+```{r warning = FALSE, message = FALSE, fig.height = 8, fig.width = 10, results = 'asis', eval = test}
 for(i in seq_along(targ_spp)){
   cat("##### ", targ_spp[[i]], "\n")
   cat("Species percent cover by target species group across all lcoations. Points are median cover across photoplots. 
@@ -169,23 +192,53 @@ for(i in seq_along(targ_spp)){
 }
 ```
 
-### Temperature Loggers {.tabset}
-#### By Location {.tabset}
-```{r warning = FALSE, message = FALSE, fig.height = 8, fig.width = 10, results = 'asis'}
+#### Heatmaps {.tabset}
+```{r warning = FALSE, message = FALSE, fig.height = 8, fig.width = 12, results = 'asis', eval = test}
 for(i in seq_along(locs$Loc_Code)){
   cat("##### ", locs$Loc_Code[[i]], "\n")
-  cat("Water temperature recorded closest to each high tide event per day in degrees F.", "\n")
-  print(water_temp_plots[[i]])
+  cat("Median percent cover by target species group for main 5 species per photoplot target species. ", "\n")
+  print(photo_species_heatmap[[i]])
   cat("\n\n") 
 }
 ```
 
-#### By Year {.tabset}
+
+### Temperature Loggers {.tabset}
+#### By Location {.tabset}
 ```{r warning = FALSE, message = FALSE, fig.height = 8, fig.width = 10, results = 'asis'}
-for(i in seq_along(years)){
-  cat("##### ", years[[i]], "\n")
-  cat("Water temperature recorded closest to each high tide event per day in degrees F by year.", "\n")
-  print(water_temp_plots_year[[i]])
+for(i in seq_along(locs$Loc_Code)){
+  cat("##### ", locs$Loc_Code[[i]], "\n\n")
+  cat("\n")
+  cat("Daily buoy and water temperature statistics for ", park, "and ", locs$Loc_Code[[i]], ".", "\n")
   cat("\n\n") 
-}
+    paste0("```{r fig.height = 10, fig.width = 10}\n\n",
+           plotBuoyData(park = park, years = years, metric = 'all', facet_col = 1),
+           cat("\n\n"),
+           print(plotWaterTemp(location = locs$Loc_Code[[i]], years = years, palette = 'black', plotly = F)),
+           cat("\n\n"),
+           "```\n\n",
+           cat("\n\n"))
+  cat("\n\n")
+  cat("\n\n")
+  }
+```
+
+#### By Year {.tabset}
+```{r warning = FALSE, message = FALSE, fig.height = 8, fig.width = 10, results = 'asis', eval = T}
+for(i in seq_along(years)){
+  cat("##### ", years[[i]], "\n\n")
+  cat("\n")
+  cat("Daily buoy statistics for ", years[[i]], ".", "\n")
+  cat("\n\n") 
+    paste0("```{r fig.height = 10, fig.width = 10}\n\n",
+           plotBuoyData(park = park, years = years[[i]], metric = 'all', facet_col = 1),
+           cat("\n\n"),
+           print(plotWaterTemp(location = 'all', years = years[[i]], plotly = F)),
+           cat("\n\n"),
+           "```\n\n",
+           cat("\n\n"))
+  cat("\n\n")
+  cat("\n\n")
+  }
+
 ```
