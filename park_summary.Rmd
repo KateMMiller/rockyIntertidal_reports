@@ -8,7 +8,7 @@ output:
 
 params:
   year_curr: 2021
-  park: "ACAD"
+  park: "BOHA"
   all_years: TRUE # If FALSE, only reports on year_curr; TRUE reports on all years
 ---
 
@@ -20,9 +20,10 @@ options(knitr.kable.NA = '', scipen = 100)
 ```{r imports, include = FALSE}
 library(rockyIntertidal)
 library(tidyverse)
+#library(pander) # for kniting code chunks in chunks
 ```
 
-```{r imports2, include = FALSE, cache = T}
+```{r imports2, include = FALSE, cache = F}
 importData()
 path = "../data/rocky/temp_data/Compiled_HT_water_temps/"
 importWaterTemp(path = path, simplify = T, buoy = T)
@@ -112,26 +113,6 @@ photo_species_heatmap <- purrr::map(locs$Loc_Code,
   ~plotPhotoCover(park = park, location = ., heatmap = TRUE, main_groups = T, years = years))
 
 ```
-```{r, warning = FALSE, message = FALSE, results = 'hide', include = FALSE}
-#---- Plotting water temp data by site -----
-water_temp_plots <- purrr::map(locs$Loc_Code,
-  ~plotWaterTemp(location = ., years = years, palette = 'black', plotly = T)
-  )
-```
-```{r, warning = FALSE, message = FALSE, results = 'hide', include = FALSE}
-#---- Plotting water temp of all sites ----
-water_temp_plots_year <- purrr::map(years,
-  ~plotWaterTemp(park = park, location = 'all', years = ., palette = 'viridis',
-                 facet = F, plotly = T))
-```
-
-```{r, warning = FALSE, message = FALSE, results = 'hide', include = FALSE}
-#---- Plotting buoy data of each years for a park ----
-buoy_plots_year <- purrr::map(years, 
-                              ~plotBuoyData(park = park, years = ., metric = 'all',
-                                            facet_col = 1))
-```
-
 
 ### Point Intercept Transects {.tabset}
 
@@ -205,40 +186,54 @@ for(i in seq_along(locs$Loc_Code)){
 
 ### Temperature Loggers {.tabset}
 #### By Location {.tabset}
-```{r warning = FALSE, message = FALSE, fig.height = 8, fig.width = 10, results = 'asis'}
+```{r loc_buoy, echo = F, eval = F, out.width = "100%", out.height = "60%"}
+suppressWarnings(plotBuoyData(park = park, years = years, metric = 'all', facet_col = 1))
+```
+
+```{r loc_water, echo = F, eval = F, out.width = "100%", out.height = "40%"}
+suppressWarnings(print(plotWaterTemp(park = park, location = loc, legend_position = 'none',
+                                     years = years, facet = F, plotly = F, palette = 'greyscale')))
+```
+
+```{r warning = FALSE, message = FALSE, results = 'asis'}
 for(i in seq_along(locs$Loc_Code)){
-  cat("##### ", locs$Loc_Code[[i]], "\n\n")
-  cat("\n")
-  cat("Daily buoy and water temperature statistics for ", park, "and ", locs$Loc_Code[[i]], ".", "\n")
-  cat("\n\n") 
-    paste0("```{r fig.height = 10, fig.width = 10}\n\n",
-           plotBuoyData(park = park, years = years, metric = 'all', facet_col = 1),
-           cat("\n\n"),
-           print(plotWaterTemp(location = locs$Loc_Code[[i]], years = years, palette = 'black', plotly = F)),
-           cat("\n\n"),
-           "```\n\n",
-           cat("\n\n"))
+  loc = locs$Loc_Code[[i]]
+  cat("##### ", loc, "\n\n")
+  cat("Daily buoy statistics for ", park, ". Wind direction is the value recorded during the daily maximum wind speed. ", "\n\n", sep = "")
+  <<loc_buoy>>
   cat("\n\n")
+  cat("High tide water temperature (F) for ", loc, "\n\n")
+  <<loc_water>>
   cat("\n\n")
-  }
+} 
 ```
 
 #### By Year {.tabset}
-```{r warning = FALSE, message = FALSE, fig.height = 8, fig.width = 10, results = 'asis', eval = T}
-for(i in seq_along(years)){
-  cat("##### ", years[[i]], "\n\n")
-  cat("\n")
-  cat("Daily buoy statistics for ", years[[i]], ".", "\n")
-  cat("\n\n") 
-    paste0("```{r fig.height = 10, fig.width = 10}\n\n",
-           plotBuoyData(park = park, years = years[[i]], metric = 'all', facet_col = 1),
-           cat("\n\n"),
-           print(plotWaterTemp(location = 'all', years = years[[i]], plotly = F)),
-           cat("\n\n"),
-           "```\n\n",
-           cat("\n\n"))
-  cat("\n\n")
-  cat("\n\n")
-  }
-
+```{r year_buoy, echo = F, eval = F, out.width = "100%"}
+suppressWarnings(plotBuoyData(park = park, years = year, metric = 'all', facet_col = 1))
 ```
+
+```{r year_water, echo = F, eval = F, out.width = "100%"}
+suppressWarnings(print(plotWaterTemp(park = park, location = loc, legend_position = "none",
+                                     years = year, facet = F, plotly = F, palette = "greyscale")))
+```
+
+```{r results = 'asis'}
+for(i in seq_along(years)){
+  year = years[[i]]
+  cat("##### ", year, "\n\n")
+  cat("Daily buoy statistics for ", year, ". Wind direction is the value recorded during the daily maximum wind speed. ", "\n\n", sep = "")
+  <<year_buoy>>
+    cat("\n\n")
+  cat("High tide water temperature (F) for ", year, " by site.", "\n\n")
+    for(j in seq_along(locs$Loc_Code)){
+      loc = locs$Loc_Code[[j]]
+      cat("<details open><summary class = 'drop'>", loc, "</summary>")
+      <<year_water>>
+        cat("\n\n")
+      cat("</details>", "\n\n")
+    } 
+  cat("\n\n")
+} 
+```
+
