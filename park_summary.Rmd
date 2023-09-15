@@ -20,7 +20,6 @@ options(knitr.kable.NA = '', scipen = 100)
 ```{r imports, include = FALSE}
 library(rockyIntertidal)
 library(tidyverse)
-#library(pander) # for kniting code chunks in chunks
 ```
 
 ```{r imports2, include = FALSE, cache = F}
@@ -112,6 +111,27 @@ photo_species_plots_park <- purrr::map(targ_spp,
 photo_species_heatmap <- purrr::map(locs$Loc_Code,
   ~plotPhotoCover(park = park, location = ., heatmap = TRUE, main_groups = T, years = years))
 
+```
+
+```{r warning = FALSE, message = FALSE, results = 'hide', out.width = "100%", include = FALSE}
+contours_site <- purrr::map(locs$Loc_Code,
+  ~plotSpeciesContours(location = ., years = years, plot_title = FALSE))
+
+```
+
+### Site Contours {.tabset}
+```{r warning = FALSE, message = FALSE, out.width = '100%', results = 'asis', eval = test}
+for(i in seq_along(locs$Loc_Code)){
+  cat("#### ", locs$Loc_Code[[i]], "\n")
+  cat("Smoothed site contours based on bolt elevation and transect distances averaged over all years. 
+      Species lines along contours represent the minimum and maximum ranges (narrowest lines) observed 
+      and middle 50 % (thicker lines) for each of the 5 main species across the three point intercept 
+      transects per year. Pie charts represent the median percent cover by species and median e
+      levation across photoplots for each year. The five main species are: BARSPP, MUSSPP, ASCNOD, 
+      FUCSPP, and combined Red algae group.", "\n")
+  print(contours_site[[i]])
+  cat("\n\n") 
+}
 ```
 
 ### Point Intercept Transects {.tabset}
