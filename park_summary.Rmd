@@ -8,32 +8,36 @@ output:
 
 params:
   year_curr: 2021
-  park: "BOHA"
-  all_years: TRUE # If FALSE, only reports on year_curr; TRUE reports on all years
+  park: "ACAD"
+  all_years: TRUE # If FALSE, only reports on year_curr; TRUE reports on all years; Not enabled yet
 ---
 
 ```{r setup, include = F}
 knitr::opts_chunk$set(echo = FALSE)
 options(knitr.kable.NA = '', scipen = 100)
+#knitr::opts_chunk$set(fig.width=12, fig.height=10) 
 ```
 
 ```{r imports, include = FALSE}
 library(rockyIntertidal)
 library(tidyverse)
+library(grid)
+library(knitr)
 ```
 
-```{r imports2, include = FALSE, cache = F}
+```{r imports2, include = FALSE, cache = T}
 importData()
 path = "../data/rocky/temp_data/Compiled_HT_water_temps/"
 importWaterTemp(path = path, simplify = T, buoy = T)
 ```
 
-```{r params, includ = FALSE}
-# park = "ACAD"
+```{r params, include = FALSE}
+# park = "BOHA"
 # year_curr = 2021
 # years = 2013:2021
 
-test = TRUE
+run = TRUE # using for testing, so don't have to wait forever for full report to knit, when
+# just testing 1 section. run = FALSE only runs the chunks set to eval = TRUE; 
 
 park = params$park
 year_curr = params$year_curr
@@ -62,7 +66,7 @@ trans_species_com <- switch(park,
 Rocky intertidal data summary for `r params$park` and `r paste(years, collapse = ", ")` {.tabset .tabset-pills}
 ---
 
-```{r, warning = FALSE, message = FALSE, results = 'hide', include = FALSE, eval = test}
+```{r, warning = FALSE, message = FALSE, results = 'hide', include = FALSE, eval = run}
 #---- Plotting all species by elevation per location -----
 trans_species_plots <- 
   purrr::map(locs$Loc_Code,
@@ -75,62 +79,64 @@ trans_species_plots <-
           legend.key.height = unit(0.5, 'cm'),
           legend.title = element_blank()))
 ```
-```{r, warning = FALSE, message = FALSE, results = 'hide', include = FALSE, eval = test}
+```{r, warning = FALSE, message = FALSE, results = 'hide', include = FALSE, eval = run}
 #---- Plotting individual PI transect species across all locations -----
 trans_species_plots_park <- 
   purrr::map(trans_species_com, 
              ~ plotPISpecies(park = park, location = 'all', xlab = 'Year', ylab = "Elevation MLLW (m)",
                                      species = ., title = FALSE, facet = TRUE, years = years, rev_axis = F))
 ```
-```{r, warning = FALSE, message = FALSE, results = 'hide', include = FALSE, eval = test}
+```{r, warning = FALSE, message = FALSE, results = 'hide', include = FALSE, eval = run}
 #---- Plotting main 5 species for PI transects with plotly -----
 trans_spp_plotly <- plotPISpecies(park = park, years = years, title = F, xlab = NULL, #facet = F,
                       species = 'all', main_groups = T, rev_axis = F, plotly = T, ribbon = T)
 ```
-```{r, warning = FALSE, message = FALSE, results = 'hide', include = FALSE, eval = test}
+```{r, warning = FALSE, message = FALSE, results = 'hide', include = FALSE, eval = run}
 #---- Plotting photoplot cover by target species and site ----
 photo_species_plots <- purrr::map(locs$Loc_Code,
   ~plotPhotoCover(location = ., species = 'all', top_spp = 3, years = years)                                
   )
 ```
-```{r, warning = FALSE, message = FALSE, results = 'hide', include = FALSE, eval = test}
+```{r, warning = FALSE, message = FALSE, results = 'hide', include = FALSE, eval = run}
 #---- Plotting individual photoplot target species across all locations
 targ_spp <- switch(park, 
                    "ACAD" = c("Barnacle", "Fucus", "Ascophyllum", "Red Algae", "Mussel"),
                    "BOHA" = c("Barnacle", "Fucus", "Ascophyllum", "Red Algae"))
                    
 ```
-```{r, warning = FALSE, message = FALSE, results = 'hide', include = FALSE, eval = test}
+```{r, warning = FALSE, message = FALSE, results = 'hide', include = FALSE, eval = run}
 photo_species_plots_park <- purrr::map(targ_spp,
   ~plotPhotoCover(park = park, location = 'all', target_species = ., 
                   top_spp = 3, species = 'all', years = years)                                
   )
 
 ```
-```{r, warning = FALSE, message = FALSE, results = 'hide', include = FALSE, eval = test}
+```{r, warning = FALSE, message = FALSE, results = 'hide', include = FALSE, eval = run}
 photo_species_heatmap <- purrr::map(locs$Loc_Code,
   ~plotPhotoCover(park = park, location = ., heatmap = TRUE, main_groups = T, years = years))
 
 ```
 
-```{r warning = FALSE, message = FALSE, results = 'hide', out.width = "100%", include = FALSE}
-contours_site <- purrr::map(locs$Loc_Code,
-  ~plotSpeciesContours(location = ., years = years, plot_title = FALSE))
+```{r, contour_chunk, warning = FALSE, message = FALSE, eval = FALSE}
+plotSpeciesContours(location = loc, years = years, plot_title = F)
+```
+
+```{r contour, eval =  FALSE}
+knitr::include_graphics(paste0("C:/NETN/R_Dev/rockyIntertidal_reports/imgs/", loc, "_contour_2013_2021.svg"))
 
 ```
 
 ### Site Contours {.tabset}
-```{r warning = FALSE, message = FALSE, out.width = '100%', results = 'asis', eval = test}
+```{r warning = FALSE, message = FALSE, results = 'asis', eval = TRUE, fig.height = 9, out.width = "160%"}
 for(i in seq_along(locs$Loc_Code)){
-  cat("#### ", locs$Loc_Code[[i]], "\n")
-  cat("Smoothed site contours based on bolt elevation and transect distances averaged over all years. 
-      Species lines along contours represent the minimum and maximum ranges (narrowest lines) observed 
-      and middle 50 % (thicker lines) for each of the 5 main species across the three point intercept 
-      transects per year. Pie charts represent the median percent cover by species and median e
-      levation across photoplots for each year. The five main species are: BARSPP, MUSSPP, ASCNOD, 
-      FUCSPP, and combined Red algae group.", "\n")
-  print(contours_site[[i]])
-  cat("\n\n") 
+  loc <- locs$Loc_Code[[i]]
+  cat("#### ", loc, "\n\n")
+  cat("Smoothed site contours based on bolt elevation and transect distances averaged over all years. Species lines along contours represent the minimum and maximum ranges observed for each of the 5 main species across the three point intercept transects per year. Pie charts represent the median percent cover by species and median e levation across photoplots for each year. The five main species are: BARSPP, MUSSPP, ASCNOD, FUCSPP, and combined Red algae group.\n")
+  cat("\n\n")
+  <<contour_chunk>>
+  cat("\n\n")
+  cat("\n\n")
+
 }
 ```
 
@@ -139,14 +145,15 @@ for(i in seq_along(locs$Loc_Code)){
 #### By Main Species {.tabset}
 Point Intercept species by elevation across locations. Points are median elevation across 3 transects. 
 Bands lower 25% and upper 75% distributions across 3 transects for the primary species of concern. In the legend, Ascophyllum nodosum (Knotted wrack) is abbreviated as ASCNOD, Barnacles are abbreviated as BARSPP, Fucus spp. (Rockweed) is abbreviated as FUCSPP, Mussels are abbreviated as MUSSPP, and red algae are abbreviated as REDGRP. The red algae group includes Irish moss (Chondrus / Mastocarpus) and algae identified as Other Algae - Red. 
-```{r fig.height = 8, fig.width = 10, eval = test}
+```{r fig.height = 8, fig.width = 10, eval = run}
 trans_spp_plotly
 ```
 
 #### By Location {.tabset}
-```{r warning = FALSE, message = FALSE, fig.height = 8, fig.width = 10, results = 'asis', eval = test}
+```{r warning = FALSE, message = FALSE, fig.height = 8, fig.width = 10, results = 'asis', eval = run}
 for(i in seq_along(locs$Loc_Code)){
-  cat("##### ", locs$Loc_Code[[i]], "\n")
+  loc <- locs$Loc_Code[[i]]
+  cat("##### ", loc, "\n")
   cat("Point Intercept species by elevation. Points are median elevation across 3 transects. 
        Wider lines are the middle 25% and 75% quantiles. Thin lines are minimum and maximum elevations 
        recorded for a given species.", "\n")
@@ -156,7 +163,7 @@ for(i in seq_along(locs$Loc_Code)){
 ```
 
 #### By Species {.tabset}
-```{r warning = FALSE, message = FALSE, fig.height = 8, fig.width = 10, results = 'asis', eval = test}
+```{r warning = FALSE, message = FALSE, fig.height = 8, fig.width = 10, results = 'asis', eval = run}
 for(i in seq_along(trans_species_com)){
   cat("##### ", trans_species_com[[i]], "\n")
   cat("Point Intercept species by elevation across locations. Points are median elevation across 3 transects.
@@ -170,7 +177,7 @@ for(i in seq_along(trans_species_com)){
 ### Photoplots {.tabset}
 
 #### By Location {.tabset}
-```{r warning = FALSE, message = FALSE, fig.height = 8, fig.width = 10, results = 'asis', eval = test}
+```{r warning = FALSE, message = FALSE, fig.height = 8, fig.width = 10, results = 'asis', eval = run}
 for(i in seq_along(locs$Loc_Code)){
   cat("##### ", locs$Loc_Code[[i]], "\n")
   cat("Species percent cover by target species group. Points are median cover across photoplots. 
@@ -182,7 +189,7 @@ for(i in seq_along(locs$Loc_Code)){
 ```
 
 #### By Target Species {.tabset}
-```{r warning = FALSE, message = FALSE, fig.height = 8, fig.width = 10, results = 'asis', eval = test}
+```{r warning = FALSE, message = FALSE, fig.height = 8, fig.width = 10, results = 'asis', eval = run}
 for(i in seq_along(targ_spp)){
   cat("##### ", targ_spp[[i]], "\n")
   cat("Species percent cover by target species group across all lcoations. Points are median cover across photoplots. 
@@ -194,7 +201,7 @@ for(i in seq_along(targ_spp)){
 ```
 
 #### Heatmaps {.tabset}
-```{r warning = FALSE, message = FALSE, fig.height = 8, fig.width = 12, results = 'asis', eval = test}
+```{r warning = FALSE, message = FALSE, fig.height = 8, fig.width = 12, results = 'asis', eval = run}
 for(i in seq_along(locs$Loc_Code)){
   cat("##### ", locs$Loc_Code[[i]], "\n")
   cat("Median percent cover by target species group for main 5 species per photoplot target species. ", "\n")
@@ -206,16 +213,16 @@ for(i in seq_along(locs$Loc_Code)){
 
 ### Temperature Loggers {.tabset}
 #### By Location {.tabset}
-```{r loc_buoy, echo = F, eval = F, out.width = "100%", out.height = "60%"}
+```{r loc_buoy, echo = F, eval = F, out.width = "100%", out.height = "60%", eval = run}
 suppressWarnings(plotBuoyData(park = park, years = years, metric = 'all', facet_col = 1))
 ```
 
-```{r loc_water, echo = F, eval = F, out.width = "100%", out.height = "40%"}
+```{r loc_water, echo = F, eval = F, out.width = "100%", out.height = "40%", eval = run}
 suppressWarnings(print(plotWaterTemp(park = park, location = loc, legend_position = 'none',
                                      years = years, facet = F, plotly = F, palette = 'greyscale')))
 ```
 
-```{r warning = FALSE, message = FALSE, results = 'asis'}
+```{r warning = FALSE, message = FALSE, results = 'asis', eval = run}
 for(i in seq_along(locs$Loc_Code)){
   loc = locs$Loc_Code[[i]]
   cat("##### ", loc, "\n\n")
@@ -229,16 +236,16 @@ for(i in seq_along(locs$Loc_Code)){
 ```
 
 #### By Year {.tabset}
-```{r year_buoy, echo = F, eval = F, out.width = "100%"}
+```{r year_buoy, echo = F, eval = F, out.width = "100%", eval = FALSE}
 suppressWarnings(plotBuoyData(park = park, years = year, metric = 'all', facet_col = 1))
 ```
 
-```{r year_water, echo = F, eval = F, out.width = "100%"}
+```{r year_water, echo = F, eval = F, out.width = "100%", eval = FALSE}
 suppressWarnings(print(plotWaterTemp(park = park, location = loc, legend_position = "none",
                                      years = year, facet = F, plotly = F, palette = "greyscale")))
 ```
 
-```{r results = 'asis'}
+```{r results = 'asis', eval = run}
 for(i in seq_along(years)){
   year = years[[i]]
   cat("##### ", year, "\n\n")
