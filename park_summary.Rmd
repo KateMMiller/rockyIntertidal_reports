@@ -23,16 +23,17 @@ library(rockyIntertidal)
 library(tidyverse)
 library(grid)
 library(knitr)
+library(DT)
 ```
 
-```{r imports2, include = FALSE, cache = T}
+```{r imports2, include = FALSE, cache = F}
 importData()
 path = "../data/rocky/temp_data/Compiled_HT_water_temps/"
 importWaterTemp(path = path, simplify = T, buoy = T)
 ```
 
 ```{r params, include = FALSE}
-# park = "BOHA"
+# park = "ACAD"
 # year_curr = 2021
 # years = 2013:2021
 
@@ -131,13 +132,202 @@ knitr::include_graphics(paste0("C:/NETN/R_Dev/rockyIntertidal_reports/imgs/", lo
 for(i in seq_along(locs$Loc_Code)){
   loc <- locs$Loc_Code[[i]]
   cat("#### ", loc, "\n\n")
-  cat("Smoothed site contours based on bolt elevation and transect distances averaged over all years. Species lines along contours represent the minimum and maximum ranges observed for each of the 5 main species across the three point intercept transects per year. Pie charts represent the median percent cover by species and median e levation across photoplots for each year. The five main species are: BARSPP, MUSSPP, ASCNOD, FUCSPP, and combined Red algae group.\n")
+  cat("Smoothed site contours based on bolt elevation and transect distances averaged over all years. Species points represent point intercept detections for each of the 5 main species across the three point intercept transects per year. Symbols represent the median elevation for a species per year. Pie charts represent the median percent cover by species and median elevation across photoplots for each year. The five main species are: BARSPP, MUSSPP, ASCNOD, FUCSPP, and combined Red algae group.\n")
   cat("\n\n")
   <<contour_chunk>>
   cat("\n\n")
   cat("\n\n")
 
 }
+```
+
+#### Data {.tabset}
+```{r echo = F, include = F}
+# Generating the data that feeds into the contour plots
+photo1 <- suppressWarnings(getPhotoCover(park = park, plotName = 'all',
+                                         category = 'all', years = years, QAQC = FALSE,
+                                         species = c("ASCNOD",  "ASCEPI", "BARSPP",
+                                                     "FUCSPP", "FUCEPI",
+                                                     "MUSSPP", "ALGRED", "CHOMAS"),
+                                         target_species = 'all')) |>
+                           dplyr::filter(!is.na(Perc_Cover))
+
+photo <- photo1 |> mutate(Spp_Code = case_when(Spp_Code %in% c("ALGRED", "CHOMAS") ~ "REDGRP",
+                                               Spp_Code %in% c("FUCSPP", "FUCEPI") ~ "FUCSPP",
+                                               Spp_Code %in% c("ASCNOD", "ASCEPI") ~ "ASCNOD",
+                                               TRUE ~ Spp_Code),
+                          Spp_Name = case_when(Spp_Code %in% "REDGRP" ~ "Red algae group",
+                                               Spp_Code %in% "FUCSPP" ~ "Fucus spp. (Rockweed)",
+                                               Spp_Code %in% "ASCNOD" ~ "A. nodosum (knotted wrack)",
+                                               TRUE ~ Spp_Name))
+
+# combine cover for red group
+photo_sum1 <- photo |> group_by(Site_Code, Loc_Code, Year, Spp_Code, Plot_Name,
+                                Target_Species, Bolt_MLLW_Elev) |>
+                       summarize(tot_cov = sum(Perc_Cover, na.rm = T),
+                                .groups = 'drop') |> ungroup()
+
+# summarize median cover
+photo_sum <- photo_sum1 |> group_by(Site_Code, Loc_Code, Year, Target_Species, Spp_Code) |>
+                           summarize(avg_cover = mean(tot_cov, na.rm = T),
+                                     med_cover = median(tot_cov, na.rm = T),
+                                     elev = median(Bolt_MLLW_Elev, na.rm = T),
+                                     .groups = 'drop')
+
+# Compile species PI data
+spdat1 <- suppressWarnings(sumPISpecies(park = park, plotName = 'all',
+                                        years = years,
+                                        QAQC = FALSE,
+                                        species = c("ASCNOD", "BARSPP", "FUCSPP",
+                                                    "MUSSPP", "ALGRED", "CHOMAS")))
+
+# Combine ALGRED and CHOMAS
+spdat <- spdat1 |> mutate(Spp_Code = ifelse(Spp_Code %in% c("ALGRED", "CHOMAS"), "REDGRP", Spp_Code),
+                          Spp_Name = ifelse(Spp_Code %in% "REDGRP", "Red algae group", Spp_Name))
+
+trdat <- spdat |> select(Site_Code, Loc_Code, #Year, Plot_Name,
+                         elev = PI_Elevation, dist = PI_Distance) |> #dist = Distance_m) |>
+                    unique() |> na.omit()
+locs1 <- unique(spdat$Loc_Code)
+
+# Smooth contours across all transects and years
+trsm <- purrr::map_dfr(seq_along(locs1), 
+     function(loc){
+       loccode <- locs1[loc]
+       dat <- trdat |> filter(Loc_Code == loccode)                  
+       smooth <- loess(dist ~ elev, data = dat, span = 0.6)
+       cbind(dat, dist_pred = predict(smooth, dat))
+})
+
+# Predict distance for photo plots
+photo_dist <- purrr::map_dfr(seq_along(locs1), 
+     function(loc){
+       loccode <- locs1[loc]
+       datsm <- trdat |> filter(Loc_Code == loccode)                  
+       smooth <- loess(dist ~ elev, data = datsm, span = 0.6)
+       photosm <- photo_sum |> filter(Loc_Code == loccode)
+       cbind(photosm, dist_pred = predict(smooth, photosm))
+})
+    
+  # Red algae photo plots are sometimes lower elevation than the transect, and loess smoother
+  # won't predict a distance value for those elevations. Replacing NA with farthest distance in trsm_dat
+  # SHIHAR Ascophyllum photoplots are higher than the transect elevations. Adjusting by changing the max
+  # elevation for Ascophyllum to be close to median of Asco point intercepts from 2013
+  max_dist <- trsm |> group_by(Loc_Code) |> summarize(max_dist = max(dist_pred, na.rm = T))
+  shidist <- 0.553
+
+  photo_dist2 <- left_join(photo_dist, max_dist, by = "Loc_Code")
+  
+  photo_dist2 <- photo_dist2 |> 
+    mutate(dist_pred = ifelse(is.na(dist_pred) & Target_Species == "Red Algae", max_dist, 
+                              ifelse(is.na(dist_pred) & Target_Species == "Ascophyllum" &
+                                       Loc_Code == "SHIHAR", 0.533, dist_pred))) |> select(-max_dist)
+  
+  photo_dist_wide <- photo_dist2 |> select(Site_Code, Loc_Code, Year, Target_Species,
+                                          Spp_Code, avg_cover, elev, dist_pred) |>
+                                   pivot_wider(names_from = Spp_Code,
+                                               values_from = avg_cover, values_fill = 0)
+
+  # Summarize species PIs, then predict distance from elevations
+  sp_sum <- spdat |> group_by(Site_Code, Loc_Code, Year, Spp_Code, Spp_Name) |>
+    summarize(elev_min = min(PI_Elevation, na.rm = T),
+              elev_max = max(PI_Elevation, na.rm = T),
+              elev_med = median(PI_Elevation, na.rm = T),
+              elev_l95 = quantile(PI_Elevation, probs = 0.025, na.rm = T),
+              elev_u95 = quantile(PI_Elevation, probs = 0.975, na.rm = T),
+              elev_l25 = quantile(PI_Elevation, probs = 0.25, na.rm = T),
+              elev_u75 = quantile(PI_Elevation, probs = 0.75, na.rm = T),
+              .groups = 'drop')
+
+  # Create new datasets for prediction for each stat
+  sp_min <- sp_sum |> select(Site_Code:Spp_Name, elev = elev_min)
+  sp_med <- sp_sum |> select(Site_Code:Spp_Name, elev = elev_med)
+  sp_max <- sp_sum |> select(Site_Code:Spp_Name, elev = elev_max)
+  sp_l25 <- sp_sum |> select(Site_Code:Spp_Name, elev = elev_l25)
+  sp_u75 <- sp_sum |> select(Site_Code:Spp_Name, elev = elev_u75)
+
+  # Predict distances for each stat based on its elevation
+  sp_dist <- purrr::map_dfr(seq_along(locs1), 
+     function(loc){
+       loccode <- locs1[loc]
+       datsm <- trdat |> filter(Loc_Code == loccode)                  
+       smooth <- loess(dist ~ elev, data = datsm, span = 0.6)
+       spsmooth <- sp_sum |> filter(Loc_Code == loccode) |> select(Site_Code:Spp_Name, elev = elev_med)
+       cbind(spsmooth, dist_pred = predict(smooth, spsmooth))
+  })
+```  
+```{r echo = F, include = F}  
+raw_photo_dt <- datatable(photo1, width = '1200px', 
+                          extensions = c("FixedColumns", "Buttons"),
+                          options = list(       
+                             pageLength = 10,
+                             autoWidth = FALSE, scrollX = TRUE,
+                             scrollY = '600px',
+                             scrollCollapse = TRUE,
+                             fixedColumns = list(leftColumns = 1),
+                             dom = "Blfrtip", buttons = c('copy', 'csv', 'print')),
+                          filter = list(position = c('top'), clear = FALSE))
+
+```
+```{r echo = F, include = F}
+sum_photo_dt <- datatable(photo_sum, width = '1200px', 
+                       extensions = c("FixedColumns", "Buttons"),
+                       options = list(       
+                           pageLength = 10,
+                           autoWidth = FALSE, scrollX = TRUE,
+                           scrollY = '600px',
+                           scrollCollapse = TRUE,
+                           fixedColumns = list(leftColumns = 1),
+                           dom = "Blfrtip", buttons = c('copy', 'csv', 'print')),
+                        filter = list(position = c('top'), clear = FALSE))
+```
+```{r echo = F, include = F}
+raw_PIspecies_dt <- 
+  datatable(spdat1, width = '1200px',
+            extensions = c("FixedColumns", "Buttons"),
+            options = list(       
+                           pageLength = 10,
+                           autoWidth = FALSE, scrollX = TRUE,
+                           scrollY = '600px',
+                           scrollCollapse = TRUE,
+                           fixedColumns = list(leftColumns = 1),
+                           dom = "Blfrtip", buttons = c('copy', 'csv', 'print')),
+            filter = list(position = c('top'), clear = FALSE)
+            ) 
+
+```
+```{r echo = F, include = F}
+sum_PIspecies_dt <- 
+  datatable(sp_dist, width = '1200px',
+            extensions = c("FixedColumns", "Buttons"),
+            options = list(       
+                           pageLength = 10,
+                           autoWidth = FALSE, scrollX = TRUE,
+                           scrollY = '600px',
+                           scrollCollapse = TRUE,
+                           fixedColumns = list(leftColumns = 1),
+                           dom = "Blfrtip", buttons = c('copy', 'csv', 'print')),
+                      filter = list(position = c('top'), clear = FALSE))
+```
+
+##### Raw Photo Data
+```{r}
+raw_photo_dt
+```
+
+##### Summarized Photo Data
+```{r}
+sum_photo_dt
+```
+
+##### Raw PI Species Data
+```{r}
+raw_PIspecies_dt
+```
+
+##### Summarized PI Species Data
+```{r}
+sum_PIspecies_dt
 ```
 
 ### Point Intercept Transects {.tabset}
@@ -262,5 +452,71 @@ for(i in seq_along(years)){
     } 
   cat("\n\n")
 } 
+```
+
+#### Data {.tabset}
+##### Buoy
+```{r echo = F, include = F}
+buoy_dt <- if(park == "ACAD"){
+  datatable(get("ACAD_buoy", envir = ROCKY), width = '1200px',
+            extensions = c("FixedColumns", "Buttons"),
+            options = list(       
+                           pageLength = 10,
+                           autoWidth = FALSE, scrollX = TRUE,
+                           scrollY = '600px',
+                           scrollCollapse = TRUE,
+                           
+                           fixedColumns = list(leftColumns = 1),
+                           dom = "Blfrtip", buttons = c('copy', 'csv', 'print')),
+                      filter = list(position = c('top'), clear = FALSE))
+} else {
+  datatable(get("BOHA_buoy", envir = ROCKY), width = '1200px',
+            extensions = c("FixedColumns", "Buttons"),
+            options = list(       
+                           pageLength = 10,
+                           autoWidth = FALSE, scrollX = TRUE,
+                           scrollY = '600px',
+                           scrollCollapse = TRUE,
+                           
+                           fixedColumns = list(leftColumns = 1),
+                           dom = "Blfrtip", buttons = c('copy', 'csv', 'print')),
+                      filter = list(position = c('top'), clear = FALSE)) 
+}
+```
+```{r}
+buoy_dt
+```
+
+##### Loggers
+```{r echo = F, include = F}
+log_dt <- if(park == "ACAD"){
+  log_dat <- rbind(ROCKY$BASHAR, ROCKY$LITHU, ROCKY$LITMOO, ROCKY$OTTPOI, ROCKY$SCHPOI, ROCKY$SHIHAR)
+  datatable(log_dat, width = '1200px',
+            extensions = c("FixedColumns", "Buttons"),
+            options = list(       
+                           pageLength = 10,
+                           autoWidth = FALSE, scrollX = TRUE,
+                           scrollY = '600px',
+                           scrollCollapse = TRUE,
+                           fixedColumns = list(leftColumns = 1),
+                           dom = "Blfrtip", buttons = c('copy', 'csv', 'print')),
+                      filter = list(position = c('top'), clear = FALSE))
+} else {
+    log_dat <- rbind(ROCKY$CALISL, ROCKY$GREISL, ROCKY$OUTBRE)
+    datatable(log_dat, width = '1200px',
+            extensions = c("FixedColumns", "Buttons"),
+            options = list(       
+                           pageLength = 10,
+                           autoWidth = FALSE, scrollX = TRUE,
+                           scrollY = '600px',
+                           scrollCollapse = TRUE,
+                           fixedColumns = list(leftColumns = 1),
+                           dom = "Blfrtip", buttons = c('copy', 'csv', 'print')),
+                      filter = list(position = c('top'), clear = FALSE))
+}
+```
+
+```{r}
+log_dt
 ```
 
