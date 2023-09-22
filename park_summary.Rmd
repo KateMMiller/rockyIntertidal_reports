@@ -24,18 +24,21 @@ library(tidyverse)
 library(grid)
 library(knitr)
 library(DT)
+library(plotly)
+library(htmltools)
+library(DiagrammeR)
 ```
 
-```{r imports2, include = FALSE, cache = F}
+```{r imports2, include = FALSE, cache = T}
 importData()
 path = "../data/rocky/temp_data/Compiled_HT_water_temps/"
 importWaterTemp(path = path, simplify = T, buoy = T)
 ```
 
 ```{r params, include = FALSE}
-# park = "ACAD"
-# year_curr = 2021
-# years = 2013:2021
+park = "ACAD"
+year_curr = 2021
+years = 2013:2021
 
 run = TRUE # using for testing, so don't have to wait forever for full report to knit, when
 # just testing 1 section. run = FALSE only runs the chunks set to eval = TRUE; 
@@ -122,13 +125,8 @@ photo_species_heatmap <- purrr::map(locs$Loc_Code,
 plotSpeciesContours(location = loc, years = years, plot_title = F)
 ```
 
-```{r contour, eval =  FALSE}
-knitr::include_graphics(paste0("C:/NETN/R_Dev/rockyIntertidal_reports/imgs/", loc, "_contour_2013_2021.svg"))
-
-```
-
 ### Site Contours {.tabset}
-```{r warning = FALSE, message = FALSE, results = 'asis', eval = TRUE, fig.height = 9, out.width = "160%"}
+```{r warning = FALSE, message = FALSE, results = 'asis', fig.height = 9, out.width = "160%", eval = run}
 for(i in seq_along(locs$Loc_Code)){
   loc <- locs$Loc_Code[[i]]
   cat("#### ", loc, "\n\n")
@@ -142,7 +140,7 @@ for(i in seq_along(locs$Loc_Code)){
 ```
 
 #### Data {.tabset}
-```{r echo = F, include = F}
+```{r echo = F, include = F, eval = run}
 # Generating the data that feeds into the contour plots
 photo1 <- suppressWarnings(getPhotoCover(park = park, plotName = 'all',
                                          category = 'all', years = years, QAQC = FALSE,
@@ -256,11 +254,11 @@ photo_dist <- purrr::map_dfr(seq_along(locs1),
        cbind(spsmooth, dist_pred = predict(smooth, spsmooth))
   })
 ```  
-```{r echo = F, include = F}  
+```{r echo = F, include = F, eval = run}  
 raw_photo_dt <- datatable(photo1, width = '1200px', 
                           extensions = c("FixedColumns", "Buttons"),
                           options = list(       
-                             pageLength = 10,
+                             pageLength = 100,
                              autoWidth = FALSE, scrollX = TRUE,
                              scrollY = '600px',
                              scrollCollapse = TRUE,
@@ -269,11 +267,11 @@ raw_photo_dt <- datatable(photo1, width = '1200px',
                           filter = list(position = c('top'), clear = FALSE))
 
 ```
-```{r echo = F, include = F}
+```{r echo = F, include = F, eval = run}
 sum_photo_dt <- datatable(photo_sum, width = '1200px', 
                        extensions = c("FixedColumns", "Buttons"),
                        options = list(       
-                           pageLength = 10,
+                           pageLength = 100,
                            autoWidth = FALSE, scrollX = TRUE,
                            scrollY = '600px',
                            scrollCollapse = TRUE,
@@ -281,12 +279,12 @@ sum_photo_dt <- datatable(photo_sum, width = '1200px',
                            dom = "Blfrtip", buttons = c('copy', 'csv', 'print')),
                         filter = list(position = c('top'), clear = FALSE))
 ```
-```{r echo = F, include = F}
+```{r echo = F, include = F, eval = run}
 raw_PIspecies_dt <- 
   datatable(spdat1, width = '1200px',
             extensions = c("FixedColumns", "Buttons"),
             options = list(       
-                           pageLength = 10,
+                           pageLength = 100,
                            autoWidth = FALSE, scrollX = TRUE,
                            scrollY = '600px',
                            scrollCollapse = TRUE,
@@ -296,12 +294,12 @@ raw_PIspecies_dt <-
             ) 
 
 ```
-```{r echo = F, include = F}
+```{r echo = F, include = F, eval = run}
 sum_PIspecies_dt <- 
   datatable(sp_dist, width = '1200px',
             extensions = c("FixedColumns", "Buttons"),
             options = list(       
-                           pageLength = 10,
+                           pageLength = 100,
                            autoWidth = FALSE, scrollX = TRUE,
                            scrollY = '600px',
                            scrollCollapse = TRUE,
@@ -309,25 +307,77 @@ sum_PIspecies_dt <-
                            dom = "Blfrtip", buttons = c('copy', 'csv', 'print')),
                       filter = list(position = c('top'), clear = FALSE))
 ```
+```{r echo = F, include = F, eval = run}
+photocov <- getPhotoCover(park = park, years = years) |> 
+  group_by(Loc_Code, Year, Target_Species) |> 
+  summarize(num_records = n(), .groups = 'drop') |> 
+  pivot_wider(names_from = Target_Species, values_from = num_records, values_fill = 0)
+
+phototab_dt <- datatable(photocov, width = '1200px',
+            extensions = c("FixedColumns", "Buttons"),
+            options = list(       
+                           pageLength = 100,
+                           autoWidth = FALSE, scrollX = TRUE,
+                           scrollY = '600px',
+                           scrollCollapse = TRUE,
+                           fixedColumns = list(leftColumns = 1),
+                           dom = "Blfrtip", buttons = c('copy', 'csv', 'print')),
+                      filter = list(position = c('top'), clear = FALSE))
+ 
+pispp <- getPISpecies(park = park, years = years) |> 
+  group_by(Loc_Code, Year, Spp_Code) |> 
+  summarize(num_records = n(), .groups = 'drop') |> 
+  pivot_wider(names_from = Spp_Code, values_from = num_records, values_fill = 0)
+
+pispp_dt <- datatable(pispp, width = "1200px",
+                      extensions = c("FixedColumns", "Buttons"),
+                      options = list(       
+                           pageLength = 100,
+                           autoWidth = FALSE, scrollX = TRUE,
+                           scrollY = '600px',
+                           scrollCollapse = TRUE,
+                           fixedColumns = list(leftColumns = 1),
+                           dom = "Blfrtip", buttons = c('copy', 'csv', 'print')),
+                      filter = list(position = c('top'), clear = FALSE))
+
+```
 
 ##### Raw Photo Data
-```{r}
+Raw photoplot data
+```{r, eval = run}
+
 raw_photo_dt
 ```
 
 ##### Summarized Photo Data
-```{r}
+Photoplot data summarized for pie charts
+```{r, eval = run}
 sum_photo_dt
 ```
 
+##### Photoplot Table
+Photoplot records by site, year, and target species (to show any missing data)
+```{r, eval = run}
+phototab_dt
+```
+
+
 ##### Raw PI Species Data
-```{r}
+Raw point intercept species data
+```{r, eval = run}
 raw_PIspecies_dt
 ```
 
 ##### Summarized PI Species Data
-```{r}
+Point intercept data summarized for points on site contour
+```{r, eval = run}
 sum_PIspecies_dt
+```
+
+##### PI Species Table
+PI species records by site and year (to show any missing data)
+```{r, eval = run}
+pispp_dt
 ```
 
 ### Point Intercept Transects {.tabset}
@@ -365,6 +415,46 @@ for(i in seq_along(trans_species_com)){
 ```
 
 ### Photoplots {.tabset}
+#### Motile Inverts vs. Substrate Species {.tabset}
+
+```{r motinv_chunk, results = 'hide', include = F, eval = T}
+motinv_photo_plots <- list()
+motinv_photo_plots <- purrr::map(locs$Loc_Code,
+  function(loc){
+  subp <-
+     plotly::subplot(
+       plotMotileInvertCounts(location = loc, main_groups = TRUE,
+                              plotly = T, years = 2013:2018, xaxis = F),
+       plotPhotoCover(location = loc, main_groups = T, plotly = T, years = 2013:2018),
+       nrows = 2, margin = c(0.1, 0.05, 0.05, 0.05),
+       shareY = FALSE, titleY = T, titleX = T
+    ) |> layout(width = 900, height = 750)
+    subp$x$layout$yaxis$title <- "Median Count"
+    subp$x$layout$yaxis2$title <- "Median % Cover"
+    subp
+    }) |> set_names(locs$Loc_Code)
+    
+#assign("motinv_photo_plots", motinv_photo_plots, envir = .GlobalEnv)
+
+```
+
+
+```{r warning = FALSE, message = FALSE, out.height="90%", results = 'asis', eval = TRUE}
+
+for(i in seq_along(locs$Loc_Code)){
+  loc <- locs$Loc_Code[[i]]
+  cat("##### ", loc, "\n")
+  cat("Motile Invertebrate median counts and substrate species percent cover by target species group. 
+       Points are median values (ie count or cover) across photoplots. Ribbons are lower 25% and upper 75%
+       distribution. Substrate species only include main community species.", "\n\n")
+  cat(knit_print(motinv_photo_plots[[loc]]))
+  cat("\n\n") 
+  cat("\n\n")
+}
+```
+```{r include = F}
+htmltools::tagList(motinv_photo_plots)
+```
 
 #### By Location {.tabset}
 ```{r warning = FALSE, message = FALSE, fig.height = 8, fig.width = 10, results = 'asis', eval = run}
@@ -456,12 +546,12 @@ for(i in seq_along(years)){
 
 #### Data {.tabset}
 ##### Buoy
-```{r echo = F, include = F}
+```{r echo = F, include = F, eval = run}
 buoy_dt <- if(park == "ACAD"){
   datatable(get("ACAD_buoy", envir = ROCKY), width = '1200px',
             extensions = c("FixedColumns", "Buttons"),
             options = list(       
-                           pageLength = 10,
+                           pageLength = 100,
                            autoWidth = FALSE, scrollX = TRUE,
                            scrollY = '600px',
                            scrollCollapse = TRUE,
@@ -473,7 +563,7 @@ buoy_dt <- if(park == "ACAD"){
   datatable(get("BOHA_buoy", envir = ROCKY), width = '1200px',
             extensions = c("FixedColumns", "Buttons"),
             options = list(       
-                           pageLength = 10,
+                           pageLength = 100,
                            autoWidth = FALSE, scrollX = TRUE,
                            scrollY = '600px',
                            scrollCollapse = TRUE,
@@ -483,12 +573,12 @@ buoy_dt <- if(park == "ACAD"){
                       filter = list(position = c('top'), clear = FALSE)) 
 }
 ```
-```{r}
-buoy_dt
+```{r warning = FALSE, eval = run}
+suppressWarnings(buoy_dt)
 ```
 
 ##### Loggers
-```{r echo = F, include = F}
+```{r echo = F, include = F, eval = run}
 log_dt <- if(park == "ACAD"){
   log_dat <- rbind(ROCKY$BASHAR, ROCKY$LITHU, ROCKY$LITMOO, ROCKY$OTTPOI, ROCKY$SCHPOI, ROCKY$SHIHAR)
   datatable(log_dat, width = '1200px',
@@ -516,7 +606,7 @@ log_dt <- if(park == "ACAD"){
 }
 ```
 
-```{r}
-log_dt
+```{r warning = F, eval = run}
+suppressWarnings(log_dt)
 ```
 
