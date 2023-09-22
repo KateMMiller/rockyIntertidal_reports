@@ -36,9 +36,9 @@ importWaterTemp(path = path, simplify = T, buoy = T)
 ```
 
 ```{r params, include = FALSE}
-park = "ACAD"
-year_curr = 2021
-years = 2013:2021
+# park = "ACAD"
+# year_curr = 2021
+# years = 2013:2021
 
 run = TRUE # using for testing, so don't have to wait forever for full report to knit, when
 # just testing 1 section. run = FALSE only runs the chunks set to eval = TRUE; 
