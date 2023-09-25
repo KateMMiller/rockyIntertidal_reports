@@ -193,6 +193,15 @@ photoplot_check <- QC_table |> filter(Data %in% "Photoplots" & Num_Records > 0)
 
 photoplot_include <- tab_include(photoplot_check)
 
+
+#+++++++++++++++++++++ Checks to add +++++++++++++++++++++++
+#+ Find NAs in photoplot motile inverts
+#+ Find NAs in motile invert measurements (SHIHAR-2021-Barnacle-TECTES = NA)
+#+ Motile invert measurements > 99.9.
+#+ Show photoplot cover by site/year to see where plots haven't been scored yet.
+#+ Show echino counts that read in as NA
+#+ EchinoMeasures have a lot of 0s in 2019, but nowhere else. Show table of values
+
 #---- Final QC check table ----
 QC_check_table <- kable(QC_table, format = 'html', align = 'c', caption = "QC checking results",
                         col.names = c("Data Tab", "Check Description", "Number of Records")) |>
