@@ -225,7 +225,7 @@ mi_meas_plots <- purrr::map(
   set_names(locs$Loc_Code)
 ```
 
-```{r motinvm_chunk_pr, warning = FALSE, message = FALSE, out.height="90%", results = 'asis', eval = run}
+```{r motinvm_chunk_pr, warning = FALSE, message = FALSE, out.height="200%", results = 'asis', eval = run}
 for(i in seq_along(locs$Loc_Code)){
   loc <- locs$Loc_Code[[i]]
   cat("##### ", loc, "\n")
@@ -275,7 +275,8 @@ for(i in seq_along(locs$Loc_Code)){
 #### Echino Counts {.tabset}
 ```{r echinocts, include = F, results = 'hide'}
 echino_cnt_plot <- purrr::map(locs$Loc_Code,
-  ~plotEchinoCounts(park = park, location = ., years = years, plotly = TRUE))
+  ~plotEchinoCounts(park = park, location = ., years = years, plotly = TRUE)) |> 
+  set_names(locs$Loc_Code)
 ```
 
 ```{r echino_chunk_pr, warning = FALSE, message = FALSE, out.height="90%", results = 'asis', eval = run}
@@ -297,7 +298,8 @@ htmltools::tagList(echino_cnt_plot)
 #### Echino Measurements
 ```{r echinocm, include = F, results = 'hide'}
 echino_meas_plot <- purrr::map(locs$Loc_Code,
-  ~plotEchinoMeas(park = park, location = ., years = years))
+  ~plotEchinoMeas(park = park, location = ., years = years)) |> 
+  set_names(locs$Loc_Code)
 ```
 
 ```{r echinom_chunk_pr, warning = FALSE, message = FALSE, out.height="90%", results = 'asis', eval = run}
