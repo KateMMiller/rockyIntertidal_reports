@@ -26,7 +26,7 @@ library(knitr)
 library(DT)
 library(plotly)
 library(htmltools)
-library(DiagrammeR)
+#library(DiagrammeR)
 ```
 
 ```{r imports2, include = FALSE, cache = T}
@@ -35,11 +35,13 @@ path = "../data/rocky/temp_data/Compiled_HT_water_temps/"
 importWaterTemp(path = path, simplify = T, buoy = T)
 ```
 
-```{r params, include = FALSE}
-# park = "ACAD"
-# year_curr = 2021
-# years = 2013:2021
+```{r params, include = FALSE, eval = F}
+park = "ACAD"
+year_curr = 2021
+years = 2013:2021
 
+```
+```{r params_real, include = F}
 run = TRUE # using for testing, so don't have to wait forever for full report to knit, when
 # just testing 1 section. run = FALSE only runs the chunks set to eval = TRUE; 
 
@@ -139,16 +141,239 @@ for(i in seq_along(locs$Loc_Code)){
 }
 ```
 
-#### Data {.tabset}
-```{r echo = F, include = F, eval = run}
+### Point Intercept Transects {.tabset}
+
+#### By Main Species {.tabset}
+Point Intercept species by elevation across locations. Points are median elevation across 3 transects. 
+Bands lower 25% and upper 75% distributions across 3 transects for the primary species of concern. In the legend, Ascophyllum nodosum (Knotted wrack) is abbreviated as ASCNOD, Barnacles are abbreviated as BARSPP, Fucus spp. (Rockweed) is abbreviated as FUCSPP, Mussels are abbreviated as MUSSPP, and red algae are abbreviated as REDGRP. The red algae group includes Irish moss (Chondrus / Mastocarpus) and algae identified as Other Algae - Red. 
+```{r fig.height = 8, fig.width = 10, eval = run}
+trans_spp_plotly
+```
+
+#### By Location {.tabset}
+```{r warning = FALSE, message = FALSE, fig.height = 8, fig.width = 10, results = 'asis', eval = run}
+for(i in seq_along(locs$Loc_Code)){
+  loc <- locs$Loc_Code[[i]]
+  cat("##### ", loc, "\n")
+  cat("Point Intercept species by elevation. Points are median elevation across 3 transects. 
+       Wider lines are the middle 25% and 75% quantiles. Thin lines are minimum and maximum elevations 
+       recorded for a given species.", "\n")
+  print(trans_species_plots[[i]])
+  cat("\n\n") 
+}
+```
+
+#### By Species {.tabset}
+```{r warning = FALSE, message = FALSE, fig.height = 8, fig.width = 10, results = 'asis', eval = run}
+for(i in seq_along(trans_species_com)){
+  cat("##### ", trans_species_com[[i]], "\n")
+  cat("Point Intercept species by elevation across locations. Points are median elevation across 3 transects.
+      Wilder lines are the middle 25% and 75% quantiles. Thin lines are minimum and maximum elevations
+      recorded for a given species.", "\n")
+  print(trans_species_plots_park[[i]])
+  cat("\n\n")
+}
+```
+
+### Photoplots {.tabset}
+#### Motile Inverts vs. Substrate Species {.tabset}
+
+```{r motinv_chunk, results = 'hide', include = F, eval = run}
+motinv_photo_plots <- list()
+motinv_photo_plots <- purrr::map(locs$Loc_Code,
+  function(loc){
+  subp <-
+     plotly::subplot(
+       plotMotileInvertCounts(location = loc, main_groups = TRUE,
+                              plotly = T, years = 2013:2018, xaxis = F),
+       plotPhotoCover(location = loc, main_groups = T, plotly = T, years = 2013:2018),
+       nrows = 2, margin = c(0.1, 0.05, 0.05, 0.05),
+       shareY = FALSE, titleY = T, titleX = T
+    ) |> layout(width = 900, height = 750)
+    subp$x$layout$yaxis$title <- "Median Count"
+    subp$x$layout$yaxis2$title <- "Median % Cover"
+    subp
+    }) |> set_names(locs$Loc_Code)
+    
+#assign("motinv_photo_plots", motinv_photo_plots, envir = .GlobalEnv)
+
+```
+
+
+```{r motinv_chunk_pr, warning = FALSE, message = FALSE, out.height="90%", results = 'asis', eval = run}
+for(i in seq_along(locs$Loc_Code)){
+  loc <- locs$Loc_Code[[i]]
+  cat("##### ", loc, "\n")
+  cat("Motile Invertebrate median counts and substrate species percent cover by target species group. 
+       Points are median values (ie count or cover) across photoplots. Ribbons are lower 25% and upper 75%
+       distribution. Substrate species only include main community species.", "\n\n")
+  cat(knit_print(motinv_photo_plots[[loc]]))
+  cat("\n\n") 
+  cat("\n\n")
+}
+```
+```{r motinv_pr, include = F}
+htmltools::tagList(motinv_photo_plots)
+# note that this has to be here for the previous code to knit, even though results aren't included in report.
+```
+
+#### Motile Invert Measurements {.tabset}
+```{r mi_meas, results = 'hide', include = F, eval = run}
+mi_meas_plots <- purrr::map(
+  locs$Loc_Code, 
+  ~plotMotileInvertMeas(park = park, location = ., years = years)) |> 
+  set_names(locs$Loc_Code)
+```
+
+```{r motinvm_chunk_pr, warning = FALSE, message = FALSE, out.height="90%", results = 'asis', eval = run}
+for(i in seq_along(locs$Loc_Code)){
+  loc <- locs$Loc_Code[[i]]
+  cat("##### ", loc, "\n")
+  cat("Motile Invertebrate counts by 5mm size class by species and target species group.", "\n\n")
+  print(mi_meas_plots[[loc]])
+  cat("\n\n") 
+  cat("\n\n")
+}
+```
+
+#### By Location {.tabset}
+```{r warning = FALSE, message = FALSE, fig.height = 8, fig.width = 10, results = 'asis', eval = run}
+for(i in seq_along(locs$Loc_Code)){
+  cat("##### ", locs$Loc_Code[[i]], "\n")
+  cat("Species percent cover by target species group. Points are median cover across photoplots. 
+       Error bars are minimum and maximum cover recorded within a target species. Only top 3 species
+       are plotted in each target species group, with tied species included.", "\n")
+  print(photo_species_plots[[i]])
+  cat("\n\n") 
+}
+```
+
+#### By Target Species {.tabset}
+```{r warning = FALSE, message = FALSE, fig.height = 8, fig.width = 10, results = 'asis', eval = run}
+for(i in seq_along(targ_spp)){
+  cat("##### ", targ_spp[[i]], "\n")
+  cat("Species percent cover by target species group across all lcoations. Points are median cover across photoplots. 
+       Error bars are minimum and maximum cover recorded within a target species. Only top 3 species
+       are plotted in each target species group, with tied species included.", "\n")
+  print(photo_species_plots_park[[i]])
+  cat("\n\n") 
+}
+```
+
+#### Heatmaps {.tabset}
+```{r warning = FALSE, message = FALSE, fig.height = 8, fig.width = 12, results = 'asis', eval = run}
+for(i in seq_along(locs$Loc_Code)){
+  cat("##### ", locs$Loc_Code[[i]], "\n")
+  cat("Median percent cover by target species group for main 5 species per photoplot target species. ", "\n")
+  print(photo_species_heatmap[[i]])
+  cat("\n\n") 
+}
+```
+
+
+### Echinoderms {.tabset}
+#### Echino Counts {.tabset}
+```{r echinocts, include = F, results = 'hide'}
+echino_cnt_plot <- purrr::map(locs$Loc_Code,
+  ~plotEchinoCounts(park = park, location = ., years = years, plotly = TRUE))
+```
+
+```{r echino_chunk_pr, warning = FALSE, message = FALSE, out.height="90%", results = 'asis', eval = run}
+for(i in seq_along(locs$Loc_Code)){
+  loc <- locs$Loc_Code[[i]]
+  cat("##### ", loc, "\n")
+  cat("Mean Echinoderm counts by year. Points are median counts across tidepools. Ribbons are lower 25% and upper 75%
+       distribution.", "\n\n")
+  cat(knit_print(echino_cnt_plot[[loc]]))
+  cat("\n\n") 
+  cat("\n\n")
+}
+```
+```{r echino_pr, include = F}
+htmltools::tagList(echino_cnt_plot)
+# note that this has to be here for the previous code to knit, even though results aren't included in report.
+```
+
+#### Echino Measurements
+```{r echinocm, include = F, results = 'hide'}
+echino_meas_plot <- purrr::map(locs$Loc_Code,
+  ~plotEchinoMeas(park = park, location = ., years = years))
+```
+
+```{r echinom_chunk_pr, warning = FALSE, message = FALSE, out.height="90%", results = 'asis', eval = run}
+for(i in seq_along(locs$Loc_Code)){
+  loc <- locs$Loc_Code[[i]]
+  cat("##### ", loc, "\n")
+  cat("Echinoderm counts counts by 5mm size class by species and target species group.", "\n\n")
+  print(echino_meas_plots[[loc]])
+  cat("\n\n") 
+  cat("\n\n")
+}
+```
+
+### Temperature Loggers {.tabset}
+#### By Location {.tabset}
+```{r loc_buoy, echo = F, eval = F, out.width = "100%", out.height = "60%", eval = run}
+suppressWarnings(plotBuoyData(park = park, years = years, metric = 'all', facet_col = 1))
+```
+
+```{r loc_water, echo = F, eval = F, out.width = "100%", out.height = "40%", eval = run}
+suppressWarnings(print(plotWaterTemp(park = park, location = loc, legend_position = 'none',
+                                     years = years, facet = F, plotly = F, palette = 'greyscale')))
+```
+
+```{r warning = FALSE, message = FALSE, results = 'asis', eval = run}
+for(i in seq_along(locs$Loc_Code)){
+  loc = locs$Loc_Code[[i]]
+  cat("##### ", loc, "\n\n")
+  cat("Daily buoy statistics for ", park, ". Wind direction is the value recorded during the daily maximum wind speed. ", "\n\n", sep = "")
+  <<loc_buoy>>
+  cat("\n\n")
+  cat("High tide water temperature (F) for ", loc, "\n\n")
+  <<loc_water>>
+  cat("\n\n")
+} 
+```
+
+#### By Year {.tabset}
+```{r year_buoy, echo = F, eval = F, out.width = "100%", eval = FALSE}
+suppressWarnings(plotBuoyData(park = park, years = year, metric = 'all', facet_col = 1))
+```
+
+```{r year_water, echo = F, eval = F, out.width = "100%", eval = FALSE}
+suppressWarnings(print(plotWaterTemp(park = park, location = loc, legend_position = "none",
+                                     years = year, facet = F, plotly = F, palette = "greyscale")))
+```
+
+```{r results = 'asis', eval = run}
+for(i in seq_along(years)){
+  year = years[[i]]
+  cat("##### ", year, "\n\n")
+  cat("Daily buoy statistics for ", year, ". Wind direction is the value recorded during the daily maximum wind speed. ", "\n\n", sep = "")
+  <<year_buoy>>
+    cat("\n\n")
+  cat("High tide water temperature (F) for ", year, " by site.", "\n\n")
+    for(j in seq_along(locs$Loc_Code)){
+      loc = locs$Loc_Code[[j]]
+      cat("<details open><summary class = 'drop'>", loc, "</summary>")
+      <<year_water>>
+        cat("\n\n")
+      cat("</details>", "\n\n")
+    } 
+  cat("\n\n")
+} 
+```
+
+### Data {.tabset}
+#### Photoplot {.tabset}
+```{r sitecont_manual, echo = F, include = F, eval = run}
 # Generating the data that feeds into the contour plots
 photo1 <- suppressWarnings(getPhotoCover(park = park, plotName = 'all',
                                          category = 'all', years = years, QAQC = FALSE,
                                          species = c("ASCNOD",  "ASCEPI", "BARSPP",
                                                      "FUCSPP", "FUCEPI",
                                                      "MUSSPP", "ALGRED", "CHOMAS"),
-                                         target_species = 'all')) |>
-                           dplyr::filter(!is.na(Perc_Cover))
+                                         target_species = 'all')) 
 
 photo <- photo1 |> mutate(Spp_Code = case_when(Spp_Code %in% c("ALGRED", "CHOMAS") ~ "REDGRP",
                                                Spp_Code %in% c("FUCSPP", "FUCEPI") ~ "FUCSPP",
@@ -253,21 +478,27 @@ photo_dist <- purrr::map_dfr(seq_along(locs1),
        spsmooth <- sp_sum |> filter(Loc_Code == loccode) |> select(Site_Code:Spp_Name, elev = elev_med)
        cbind(spsmooth, dist_pred = predict(smooth, spsmooth))
   })
+
 ```  
-```{r echo = F, include = F, eval = run}  
-raw_photo_dt <- datatable(photo1, width = '1200px', 
+```{r raw_photo_dt, echo = F, include = F, eval = run}  
+raw_photo_dt <- datatable(photo1 |> select(Site_Code, Loc_Code, Year, QAQC, Plot_Name, Target_Species, 
+                                           Bolt_UTM_E, Bolt_UTM_N, Bolt_MLLW_Elev, Date_Scored,
+                                           Spp_Code, Spp_Name, Category, Perc_Cover), 
+                          width = '1200px', 
                           extensions = c("FixedColumns", "Buttons"),
                           options = list(       
                              pageLength = 100,
                              autoWidth = FALSE, scrollX = TRUE,
                              scrollY = '600px',
                              scrollCollapse = TRUE,
-                             fixedColumns = list(leftColumns = 1),
+                             fixedColumns = list(leftColumns = 1:3),
                              dom = "Blfrtip", buttons = c('copy', 'csv', 'print')),
-                          filter = list(position = c('top'), clear = FALSE))
+                          filter = list(position = c('top'), clear = FALSE)) |> 
+                          formatRound(c('Bolt_UTM_E', 'Bolt_UTM_N', 'Bolt_MLLW_Elev'), 2)
+
 
 ```
-```{r echo = F, include = F, eval = run}
+```{r sum_photo_dt, echo = F, include = F, eval = run}
 sum_photo_dt <- datatable(photo_sum, width = '1200px', 
                        extensions = c("FixedColumns", "Buttons"),
                        options = list(       
@@ -277,24 +508,30 @@ sum_photo_dt <- datatable(photo_sum, width = '1200px',
                            scrollCollapse = TRUE,
                            fixedColumns = list(leftColumns = 1),
                            dom = "Blfrtip", buttons = c('copy', 'csv', 'print')),
-                        filter = list(position = c('top'), clear = FALSE))
+                        filter = list(position = c('top'), clear = FALSE)) |> 
+                        formatRound('elev', 2)
 ```
-```{r echo = F, include = F, eval = run}
+```{r raw_PIspp_dt, echo = F, include = F, eval = run}
 raw_PIspecies_dt <- 
-  datatable(spdat1, width = '1200px',
+  datatable(spdat1 |> select(Site_Code, Loc_Code, Year, QAQC, Plot_Name, Label, 
+                             Spp_Code, Spp_Name, Elevation_MLLW_m, elev_first, elev_last, 
+                             elev_change,  Distance_m, PI_Distance, PI_Elevation), 
+            width = '1200px',
             extensions = c("FixedColumns", "Buttons"),
             options = list(       
                            pageLength = 100,
                            autoWidth = FALSE, scrollX = TRUE,
                            scrollY = '600px',
                            scrollCollapse = TRUE,
-                           fixedColumns = list(leftColumns = 1),
+                           fixedColumns = list(leftColumns = 1:3),
                            dom = "Blfrtip", buttons = c('copy', 'csv', 'print')),
-            filter = list(position = c('top'), clear = FALSE)
-            ) 
+            filter = list(position = c('top'), clear = FALSE)) |> 
+            formatRound(c('Elevation_MLLW_m', 'elev_first', 'elev_last', 
+                          'elev_change', 'Distance_m',
+                          'PI_Distance', 'PI_Elevation'), 2)
 
 ```
-```{r echo = F, include = F, eval = run}
+```{r sum_PIspp_dt, echo = F, include = F, eval = run}
 sum_PIspecies_dt <- 
   datatable(sp_dist, width = '1200px',
             extensions = c("FixedColumns", "Buttons"),
@@ -305,9 +542,11 @@ sum_PIspecies_dt <-
                            scrollCollapse = TRUE,
                            fixedColumns = list(leftColumns = 1),
                            dom = "Blfrtip", buttons = c('copy', 'csv', 'print')),
-                      filter = list(position = c('top'), clear = FALSE))
+                      filter = list(position = c('top'), clear = FALSE))|> 
+            formatRound(c('elev', 'dist_pred'), 2)
+
 ```
-```{r echo = F, include = F, eval = run}
+```{r photo_pispp_tabs, echo = F, include = F, eval = run}
 photocov <- getPhotoCover(park = park, years = years) |> 
   group_by(Loc_Code, Year, Target_Species) |> 
   summarize(num_records = n(), .groups = 'drop') |> 
@@ -319,6 +558,7 @@ phototab_dt <- datatable(photocov, width = '1200px',
                            pageLength = 100,
                            autoWidth = FALSE, scrollX = TRUE,
                            scrollY = '600px',
+                           #columnDefs = list(list(className = 'dt-center', targets = 'all')),
                            scrollCollapse = TRUE,
                            fixedColumns = list(leftColumns = 1),
                            dom = "Blfrtip", buttons = c('copy', 'csv', 'print')),
@@ -342,209 +582,243 @@ pispp_dt <- datatable(pispp, width = "1200px",
 
 ```
 
-##### Raw Photo Data
+##### Raw Substrate {.tabset}
 Raw photoplot data
 ```{r, eval = run}
 
-raw_photo_dt
+suppressWarnings(raw_photo_dt)
 ```
 
-##### Summarized Photo Data
+##### Summarized Substrate
 Photoplot data summarized for pie charts
 ```{r, eval = run}
 sum_photo_dt
 ```
 
-##### Photoplot Table
+##### Photoplot Substrate Table
 Photoplot records by site, year, and target species (to show any missing data)
 ```{r, eval = run}
 phototab_dt
 ```
 
+##### Raw Motile Invert Counts
+```{r motinv_ct_raw, results = 'hide', include = FALSE, eval = run}
+motinv <- getMotileInvertCounts(park = park, location = 'all', years = years) |> 
+  select(Site_Code, Loc_Code, Year, QAQC, Target_Species, Plot_Name, 
+         Spp_Code, Spp_Name, Damage, No.Damage, Subsampled, Bolt_UTM_E, Bolt_UTM_N, Bolt_MLLW_Elev)
 
+motinv_dt <- datatable(motinv, width = '1200px',
+                       extensions = c("FixedColumns", "Buttons"),
+                       options = list(
+                         pageLength = 100, 
+                         autoWidth = FALSE,
+                         scrollX = TRUE,
+                         scrollCollapse = TRUE, 
+                         fixedColumns = list(leftColumns = 1:3),
+                         dom = "Blfrtip",
+                         buttons = c('copy', 'csv', 'print')),
+                         filter = list(position = c('top'), clear = FALSE))|> 
+              formatRound(c('Bolt_UTM_E', 'Bolt_UTM_N', 'Bolt_MLLW_Elev'), 2)
+              
+```
+```{r motinv_ct_sum, results = 'hide', include = FALSE, eval = run}
+motinv_sum <- sumMotileInvertCounts(park = park, location = 'all', years = years) |> 
+  select(Site_Code, Loc_Code, Year, QAQC, Target_Species, Spp_Code, Spp_Name, 
+         count_total:notdamaged_u75)
+
+motinv_sum_dt <- datatable(motinv_sum, width = '1200px',
+                       extensions = c("FixedColumns", "Buttons"),
+                       options = list(
+                         pageLength = 100, 
+                         autoWidth = FALSE,
+                         scrollX = TRUE,
+                         scrollCollapse = TRUE, 
+                         fixedColumns = list(leftColumns = 1:3),
+                         dom = "Blfrtip",
+                         buttons = c('copy', 'csv', 'print')),
+                         filter = list(position = c('top'), clear = FALSE))|> 
+               formatRound(c("count_med", "count_avg", "count_l25", "count_u75", 
+                             "damaged_med", "damaged_avg", "damaged_l25", "damaged_u75",
+                             "notdamaged_med", "notdamaged_avg", "notdamaged_l25",
+                             "notdamaged_u75"), 1)
+              
+```
+
+Raw motile invertebrate counts by location, year and species.
+```{r eval = run}
+suppressWarnings(motinv_dt)
+```
+
+##### Summarized Motile Invert Counts
+Summary statistics for motile invertebrate counts calculated for each photoplot target species (ie barnacle photoplots). The u75 is the upper 75% count, and the l25 is the lower 25% count, which gives the middle 50% of the count distribution, which are the bands in the Motile Inverts vs Substrate Species plots. The count_med is the median count, which are the points in the Motile Inverts vs Substrate Species plots.
+```{r eval = run}
+suppressWarnings(motinv_sum_dt)
+```
+
+##### Raw Motile Invert Meas
+Raw Motile Invertebrate measurement data
+```{r motinv_meas, include = F, results = 'hide', eval = run}
+mi_meas <- getMotileInvertMeas(park = park, years = years) |> 
+  select(Site_Code, Loc_Code, Year, QAQC, Target_Species, Plot_Name,
+         Spp_Name, Spp_Code, Measurement)
+
+mi_meas_dt <- datatable(mi_meas, width = '1200px',
+                       extensions = c("FixedColumns", "Buttons"),
+                       options = list(
+                         pageLength = 100, 
+                         autoWidth = FALSE,
+                         scrollX = TRUE,
+                         scrollCollapse = TRUE, 
+                         fixedColumns = list(leftColumns = 1:3),
+                         dom = "Blfrtip",
+                         buttons = c('copy', 'csv', 'print')),
+                         filter = list(position = c('top'), clear = FALSE))#|> 
+              #formatRound(c('Bolt_UTM_E', 'Bolt_UTM_N', 'Bolt_MLLW_Elev'), 2)
+
+mi_meas_sum <- sumMotileInvertMeas(park = park, years = years) 
+
+mi_meas_sum_dt <- datatable(mi_meas_sum, width = '1200px',
+                       extensions = c("FixedColumns", "Buttons"),
+                       options = list(
+                         pageLength = 100, 
+                         autoWidth = FALSE,
+                         scrollX = TRUE,
+                         scrollCollapse = TRUE, 
+                         fixedColumns = list(leftColumns = 1:3),
+                         dom = "Blfrtip",
+                         buttons = c('copy', 'csv', 'print')),
+                         filter = list(position = c('top'), clear = FALSE))
+
+```
+
+```{r eval = run}
+suppressWarnings(mi_meas_dt)
+```
+
+##### Summarize Motile Invert Meas
+Motile invertebrate counts summarized in 5mm increments for easier plotting.
+```{r eval = run}
+suppressWarnings(mi_meas_sum_dt)
+```
+
+##### Raw Echinoderm Counts
+```{r echino_ct_raw, results = 'hide', include = FALSE, eval = run}
+echino <- getEchinoCounts(park = park, location = 'all', years = years) |> 
+  select(Site_Code, Loc_Code, Year, QAQC, Plot_Name, 
+         Target_Species, Spp_Code, Spp_Name, Count)
+
+echino_dt <- datatable(echino, width = '1200px',
+                       extensions = c("FixedColumns", "Buttons"),
+                       options = list(
+                         pageLength = 100, 
+                         autoWidth = FALSE,
+                         scrollX = TRUE,
+                         scrollCollapse = TRUE, 
+                         fixedColumns = list(leftColumns = 1:3),
+                         dom = "Blfrtip",
+                         buttons = c('copy', 'csv', 'print')),
+                         filter = list(position = c('top'), clear = FALSE))
+              
+```
+```{r echino_ct_sum, results = 'hide', include = FALSE, eval = run}
+echino_sum <- sumEchinoCounts(park = park, location = 'all', years = years) |> 
+  select(Site_Code, Loc_Code, Year, QAQC, Spp_Code, Spp_Name, 
+         count_total:count_u75)
+
+echino_sum_dt <- datatable(echino_sum, width = '1200px',
+                       extensions = c("FixedColumns", "Buttons"),
+                       options = list(
+                         pageLength = 100, 
+                         autoWidth = FALSE,
+                         scrollX = TRUE,
+                         scrollCollapse = TRUE, 
+                         fixedColumns = list(leftColumns = 1:3),
+                         dom = "Blfrtip",
+                         buttons = c('copy', 'csv', 'print')),
+                         filter = list(position = c('top'), clear = FALSE))|> 
+               formatRound(c("count_med", "count_avg", "count_l25", "count_u75"), 1)
+              
+```
+
+Raw echinoderm counts by location, year and species.
+```{r eval = run}
+suppressWarnings(echino_dt)
+```
+
+##### Summarized Echinoderm Counts
+Summary statistics for echinoderm counts calcuated across tidepools. The u75 is the upper 75% count, and the l25 is the lower 25% count, which gives the middle 50% of the count distribution, which are the bands in the Echinoderm Count plots. The count_avg is the mean count, which are the points in the Echinoderm count plots.
+```{r eval = run}
+suppressWarnings(echino_sum_dt)
+```
+
+##### Raw Echinoderm Meas
+Raw Echinoderm measurement data
+```{r echino_meas, include = F, results = 'hide', eval = run}
+ec_meas <- getEchinoMeas(park = park, years = years) |> 
+  select(Site_Code, Loc_Code, Year, QAQC, Target_Species, Plot_Name,
+         Spp_Name, Spp_Code, Measurement)
+
+ec_meas_dt <- datatable(ec_meas, width = '1200px',
+                       extensions = c("FixedColumns", "Buttons"),
+                       options = list(
+                         pageLength = 100, 
+                         autoWidth = FALSE,
+                         scrollX = TRUE,
+                         scrollCollapse = TRUE, 
+                         fixedColumns = list(leftColumns = 1:3),
+                         dom = "Blfrtip",
+                         buttons = c('copy', 'csv', 'print')),
+                         filter = list(position = c('top'), clear = FALSE))
+
+ec_meas_sum <- sumEchinoMeas(park = park, years = years) 
+
+ec_meas_sum_dt <- datatable(ec_meas_sum, width = '1200px',
+                       extensions = c("FixedColumns", "Buttons"),
+                       options = list(
+                         pageLength = 100, 
+                         autoWidth = FALSE,
+                         scrollX = TRUE,
+                         scrollCollapse = TRUE, 
+                         fixedColumns = list(leftColumns = 1:3),
+                         dom = "Blfrtip",
+                         buttons = c('copy', 'csv', 'print')),
+                         filter = list(position = c('top'), clear = FALSE))
+
+```
+
+```{r eval = run}
+suppressWarnings(ec_meas_dt)
+```
+
+##### Summarize Echinoderm Meas
+Echinoderm counts summarized in 5mm increments for easier plotting.
+```{r eval = run}
+suppressWarnings(ec_meas_sum_dt)
+```
+
+
+#### Point Intercept Species
 ##### Raw PI Species Data
-Raw point intercept species data
+Raw point intercept species data. Note that Elevation_MLLW_m and Distance_m come directly from "qryR_FlatFile_PointIntercept_Bolt_Dist_C". The elev_first and elev_last are the elevation ranges between a pair of sequential bolts. The elev_change is the difference between elev_first and elev_last, to calculate slope. PI_Distance is the distance of a point intercept measurement. PI_Elevation is determined with trigonometry by using the slope between bolts and the point intercept distance along the line to determine the elevation of that point intercept measurement. This assumes a constant slope within 2 bolt pairs, which may not be true, but is the best we can do. The code for these calculations lives in `sumPISpecies.R`.
+
+These data feed into the colored points without black outlines on the site contours. The contours were derived by loess smoothing the transect distance and elevations within a site (loess(dist ~ elev)). Using the loess model, I predicted the distance of the raw point intercept species data based on its elevation, and then plotted these along the smoothed contour line. This smooths over the microtopography of the transects, but is a helpful first cut to see if species appear to be moving at a site level. 
 ```{r, eval = run}
-raw_PIspecies_dt
+suppressWarnings(raw_PIspecies_dt)
 ```
 
 ##### Summarized PI Species Data
-Point intercept data summarized for points on site contour
+These data represent the median elevation for each species summarized across the 3 transects. They're also the symbols with a black outline along the site contour lines. 
 ```{r, eval = run}
 sum_PIspecies_dt
 ```
 
 ##### PI Species Table
-PI species records by site and year (to show any missing data)
+Number of point intercept species records by site and year to spot any missing data later in the data set.
 ```{r, eval = run}
 pispp_dt
 ```
 
-### Point Intercept Transects {.tabset}
-
-#### By Main Species {.tabset}
-Point Intercept species by elevation across locations. Points are median elevation across 3 transects. 
-Bands lower 25% and upper 75% distributions across 3 transects for the primary species of concern. In the legend, Ascophyllum nodosum (Knotted wrack) is abbreviated as ASCNOD, Barnacles are abbreviated as BARSPP, Fucus spp. (Rockweed) is abbreviated as FUCSPP, Mussels are abbreviated as MUSSPP, and red algae are abbreviated as REDGRP. The red algae group includes Irish moss (Chondrus / Mastocarpus) and algae identified as Other Algae - Red. 
-```{r fig.height = 8, fig.width = 10, eval = run}
-trans_spp_plotly
-```
-
-#### By Location {.tabset}
-```{r warning = FALSE, message = FALSE, fig.height = 8, fig.width = 10, results = 'asis', eval = run}
-for(i in seq_along(locs$Loc_Code)){
-  loc <- locs$Loc_Code[[i]]
-  cat("##### ", loc, "\n")
-  cat("Point Intercept species by elevation. Points are median elevation across 3 transects. 
-       Wider lines are the middle 25% and 75% quantiles. Thin lines are minimum and maximum elevations 
-       recorded for a given species.", "\n")
-  print(trans_species_plots[[i]])
-  cat("\n\n") 
-}
-```
-
-#### By Species {.tabset}
-```{r warning = FALSE, message = FALSE, fig.height = 8, fig.width = 10, results = 'asis', eval = run}
-for(i in seq_along(trans_species_com)){
-  cat("##### ", trans_species_com[[i]], "\n")
-  cat("Point Intercept species by elevation across locations. Points are median elevation across 3 transects.
-      Wilder lines are the middle 25% and 75% quantiles. Thin lines are minimum and maximum elevations
-      recorded for a given species.", "\n")
-  print(trans_species_plots_park[[i]])
-  cat("\n\n")
-}
-```
-
-### Photoplots {.tabset}
-#### Motile Inverts vs. Substrate Species {.tabset}
-
-```{r motinv_chunk, results = 'hide', include = F, eval = T}
-motinv_photo_plots <- list()
-motinv_photo_plots <- purrr::map(locs$Loc_Code,
-  function(loc){
-  subp <-
-     plotly::subplot(
-       plotMotileInvertCounts(location = loc, main_groups = TRUE,
-                              plotly = T, years = 2013:2018, xaxis = F),
-       plotPhotoCover(location = loc, main_groups = T, plotly = T, years = 2013:2018),
-       nrows = 2, margin = c(0.1, 0.05, 0.05, 0.05),
-       shareY = FALSE, titleY = T, titleX = T
-    ) |> layout(width = 900, height = 750)
-    subp$x$layout$yaxis$title <- "Median Count"
-    subp$x$layout$yaxis2$title <- "Median % Cover"
-    subp
-    }) |> set_names(locs$Loc_Code)
-    
-#assign("motinv_photo_plots", motinv_photo_plots, envir = .GlobalEnv)
-
-```
-
-
-```{r warning = FALSE, message = FALSE, out.height="90%", results = 'asis', eval = TRUE}
-
-for(i in seq_along(locs$Loc_Code)){
-  loc <- locs$Loc_Code[[i]]
-  cat("##### ", loc, "\n")
-  cat("Motile Invertebrate median counts and substrate species percent cover by target species group. 
-       Points are median values (ie count or cover) across photoplots. Ribbons are lower 25% and upper 75%
-       distribution. Substrate species only include main community species.", "\n\n")
-  cat(knit_print(motinv_photo_plots[[loc]]))
-  cat("\n\n") 
-  cat("\n\n")
-}
-```
-```{r include = F}
-htmltools::tagList(motinv_photo_plots)
-```
-
-#### By Location {.tabset}
-```{r warning = FALSE, message = FALSE, fig.height = 8, fig.width = 10, results = 'asis', eval = run}
-for(i in seq_along(locs$Loc_Code)){
-  cat("##### ", locs$Loc_Code[[i]], "\n")
-  cat("Species percent cover by target species group. Points are median cover across photoplots. 
-       Error bars are minimum and maximum cover recorded within a target species. Only top 3 species
-       are plotted in each target species group, with tied species included.", "\n")
-  print(photo_species_plots[[i]])
-  cat("\n\n") 
-}
-```
-
-#### By Target Species {.tabset}
-```{r warning = FALSE, message = FALSE, fig.height = 8, fig.width = 10, results = 'asis', eval = run}
-for(i in seq_along(targ_spp)){
-  cat("##### ", targ_spp[[i]], "\n")
-  cat("Species percent cover by target species group across all lcoations. Points are median cover across photoplots. 
-       Error bars are minimum and maximum cover recorded within a target species. Only top 3 species
-       are plotted in each target species group, with tied species included.", "\n")
-  print(photo_species_plots_park[[i]])
-  cat("\n\n") 
-}
-```
-
-#### Heatmaps {.tabset}
-```{r warning = FALSE, message = FALSE, fig.height = 8, fig.width = 12, results = 'asis', eval = run}
-for(i in seq_along(locs$Loc_Code)){
-  cat("##### ", locs$Loc_Code[[i]], "\n")
-  cat("Median percent cover by target species group for main 5 species per photoplot target species. ", "\n")
-  print(photo_species_heatmap[[i]])
-  cat("\n\n") 
-}
-```
-
-
-### Temperature Loggers {.tabset}
-#### By Location {.tabset}
-```{r loc_buoy, echo = F, eval = F, out.width = "100%", out.height = "60%", eval = run}
-suppressWarnings(plotBuoyData(park = park, years = years, metric = 'all', facet_col = 1))
-```
-
-```{r loc_water, echo = F, eval = F, out.width = "100%", out.height = "40%", eval = run}
-suppressWarnings(print(plotWaterTemp(park = park, location = loc, legend_position = 'none',
-                                     years = years, facet = F, plotly = F, palette = 'greyscale')))
-```
-
-```{r warning = FALSE, message = FALSE, results = 'asis', eval = run}
-for(i in seq_along(locs$Loc_Code)){
-  loc = locs$Loc_Code[[i]]
-  cat("##### ", loc, "\n\n")
-  cat("Daily buoy statistics for ", park, ". Wind direction is the value recorded during the daily maximum wind speed. ", "\n\n", sep = "")
-  <<loc_buoy>>
-  cat("\n\n")
-  cat("High tide water temperature (F) for ", loc, "\n\n")
-  <<loc_water>>
-  cat("\n\n")
-} 
-```
-
-#### By Year {.tabset}
-```{r year_buoy, echo = F, eval = F, out.width = "100%", eval = FALSE}
-suppressWarnings(plotBuoyData(park = park, years = year, metric = 'all', facet_col = 1))
-```
-
-```{r year_water, echo = F, eval = F, out.width = "100%", eval = FALSE}
-suppressWarnings(print(plotWaterTemp(park = park, location = loc, legend_position = "none",
-                                     years = year, facet = F, plotly = F, palette = "greyscale")))
-```
-
-```{r results = 'asis', eval = run}
-for(i in seq_along(years)){
-  year = years[[i]]
-  cat("##### ", year, "\n\n")
-  cat("Daily buoy statistics for ", year, ". Wind direction is the value recorded during the daily maximum wind speed. ", "\n\n", sep = "")
-  <<year_buoy>>
-    cat("\n\n")
-  cat("High tide water temperature (F) for ", year, " by site.", "\n\n")
-    for(j in seq_along(locs$Loc_Code)){
-      loc = locs$Loc_Code[[j]]
-      cat("<details open><summary class = 'drop'>", loc, "</summary>")
-      <<year_water>>
-        cat("\n\n")
-      cat("</details>", "\n\n")
-    } 
-  cat("\n\n")
-} 
-```
-
-#### Data {.tabset}
+#### Logger/Buoy
 ##### Buoy
 ```{r echo = F, include = F, eval = run}
 buoy_dt <- if(park == "ACAD"){
@@ -590,7 +864,8 @@ log_dt <- if(park == "ACAD"){
                            scrollCollapse = TRUE,
                            fixedColumns = list(leftColumns = 1),
                            dom = "Blfrtip", buttons = c('copy', 'csv', 'print')),
-                      filter = list(position = c('top'), clear = FALSE))
+                      filter = list(position = c('top'), clear = FALSE)) |> 
+            formatRound(c('Degrees_F', 'time_diff', 'vert_tide_height'), 2)
 } else {
     log_dat <- rbind(ROCKY$CALISL, ROCKY$GREISL, ROCKY$OUTBRE)
     datatable(log_dat, width = '1200px',
@@ -602,7 +877,8 @@ log_dt <- if(park == "ACAD"){
                            scrollCollapse = TRUE,
                            fixedColumns = list(leftColumns = 1),
                            dom = "Blfrtip", buttons = c('copy', 'csv', 'print')),
-                      filter = list(position = c('top'), clear = FALSE))
+                      filter = list(position = c('top'), clear = FALSE))|> 
+            formatRound(c('Degrees_F', 'time_diff', 'vert_tide_height'), 2)
 }
 ```
 
