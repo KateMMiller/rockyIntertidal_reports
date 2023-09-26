@@ -14,6 +14,16 @@
 # year = 2013:2021
 # park = "ACAD"
 
+
+#+++++++++++++++++++++ Checks to add +++++++++++++++++++++++
+#+ Find NAs in photoplot motile inverts
+#+ Find NAs in motile invert measurements (SHIHAR-2021-Barnacle-TECTES = NA)
+#+ Motile invert measurements > 99.9.
+#+ Show photoplot cover by site/year to see where plots haven't been scored yet.
+#+ Show echino counts that read in as NA
+#+ EchinoMeasures have a lot of 0s in 2019, but nowhere else. Show table of values
+
+
 #----- Functions -----
 QC_check <- function(df, tab, check){
   result <- data.frame("Data" = tab, "Description" = check, "Num_Records" = nrow(df))
@@ -120,7 +130,7 @@ pit_check <- QC_table |> filter(Data %in% "PI Transect" & Num_Records > 0)
 pit_include <- tab_include(pit_check)
 
 
-#---- Photoplot checks ----
+#---- Photoplot substrate checks ----
 pctcov <- do.call(getPhotoCover, arglist) |>
   mutate(sampID1 = paste(Site_Code, Loc_Code, Year, sep = "_"),
          sampID = ifelse(QAQC == TRUE, paste0(sampID1, "_Q"), sampID1)) |>
@@ -128,9 +138,31 @@ pctcov <- do.call(getPhotoCover, arglist) |>
          Spp_Code, Category, Perc_Cover, Notes)
 
 table(pctcov$sampID, pctcov$Target_Species)
+table(pctcov$Loc_Code, pctcov$Year)
 
-# Check for photoplots that have been sampled before but are missing in at least one survey
-# Or that have duplicate data
+# All of 2019 data are missing in the db version I have. Need to make a skeleton df of 2018 to show blanks.
+# The if statement below only runs if 2019 is missing from the raw dataset
+if(!2019 %in% unique(pctcov$Year)){
+  table(pctcov$Loc_Code, pctcov$Year)
+  cov19 <- pctcov |> filter(Year == 2018) |> filter(QAQC == FALSE)
+  cov19$Start_Date <- NA
+  cov19$Perc_Cover <- NA_real_
+  cov19$sampID <- gsub("18", "19", cov19$sampID)
+  cov19$Year <- 2019
+  cov19 <- unique(cov19)
+  pctcov <- rbind(pctcov, cov19)
+}
+
+if(!2021 %in% unique(pctcov$Year)){
+  table(pctcov$Loc_Code, pctcov$Year)
+  cov21 <- pctcov |> filter(Year == 2018) |> filter(QAQC == FALSE)
+  cov21$Start_Date <- NA
+  cov21$Perc_Cover <- NA_real_
+  cov21$sampID <- gsub("18", "21", cov21$sampID)
+  cov21$Year <- 2021
+  cov21 <- unique(cov21)
+  pctcov <- rbind(pctcov, cov21)
+}
 
 # location/plot name combinations found in data to check for missing
 sample_combos <- pctcov |> select(Site_Code, Loc_Code, Target_Species, Plot_Name) |> unique() |>
@@ -138,6 +170,8 @@ sample_combos <- pctcov |> select(Site_Code, Loc_Code, Target_Species, Plot_Name
   summarize(num_plots = sum(!is.na(Plot_Name)),
             .groups = 'drop')
 
+# Check for photoplots that have been sampled before but are missing in at least one survey
+# Or that have duplicate data
 plot_check1 <- as.data.frame(table(pctcov$sampID, pctcov$Target_Species)) |>
   filter(Freq < 130 | Freq > 130) |> mutate(sampID = as.character(Var1), # 5 plots * 26 species = 130
                                Target_Species = as.character(Var2),
@@ -152,10 +186,23 @@ plot_check <- left_join(sample_combos |> select(-num_plots),
               filter(!is.na(numplots)) |>
               select(Site_Code, Loc_Code, Year, Target_Species, numplots)
 
+
 QC_table <- rbind(QC_table,
-                  QC_check(plot_check, "Photoplots", "Photoplots either missing scores or having duplicate scores."))
+                  QC_check(plot_check, "Photoplot substrate", "Photoplots either missing scores or having duplicate scores."))
 
 photoplot_tbl <- make_kable(plot_check, "Photoplots either missing scores or with duplicate scores. Will only return missing target species plots that have been sampled at least one year in a given location.")
+
+
+# Find year/target species combinations that haven't been scored yet
+plot_check2 <- pctcov |> group_by(sampID, Loc_Code, Year, QAQC, Plot_Name, Target_Species) |>
+  summarize(num_pct_cov_NAs = sum(is.na(Perc_Cover)),
+            .groups = 'keep') |> filter(num_pct_cov_NAs > 0)
+
+QC_table <- rbind(QC_table,
+                  QC_check(plot_check2, "Photoplot substrate", "Photoplots that haven't been scored for the entire year."))
+
+photoplot2_tbl <- make_kable(plot_check2, "Photoplots that haven't been scored for the entire year.")
+
 
 # Check that each site has the same species list, and species not detected have a 0 for Perc_Cover.
 spp_combos <- pctcov |> select(Site_Code, Loc_Code, Spp_Code, Plot_Name) |> unique() |>
@@ -179,28 +226,167 @@ spp_check <- left_join(spp_combos,
   filter(numplots_max != numplots_samp)
 
 QC_table <- rbind(QC_table,
-                  QC_check(spp_check, "Photoplots",
+                  QC_check(spp_check, "Photoplot substrate",
                            "Photoplots either missing a species % cover that was recorded in a past survey or having duplicate percent cover."))
 
 spp_plot_tbl <- make_kable(spp_check, "Photoplots either missing a species % cover that was recorded in a past survey or having duplicate percent cover. Will only return missing species for plotoplots that have been sampled at least one year in a given location.")
 
-# Check for NAs in Perc_Cover field
+# Check for covers that sum to >100%
+pctcov_sum <- pctcov |> group_by(sampID, Loc_Code, Year, QAQC, Plot_Name, Target_Species) |>
+  summarize(tot_pctcov = sum(Perc_Cover, na.rm = T), .groups = 'drop') |> filter(tot_pctcov > 100)
 
-head(pctcov)
+QC_table <- rbind(QC_table, QC_check(pctcov_sum, "Photoplot substrate",
+                                     "Photoplots that sum to more than 100% cover. If the total percent cover sums to 200, there are likely duplicate scores for that location/photoplot."))
 
-# Check if Point Intercept tab returned any records to determine whether to plot that tab in report
-photoplot_check <- QC_table |> filter(Data %in% "Photoplots" & Num_Records > 0)
+pctcov_sum_tbl <- make_kable(spp_check, "Photoplots that sum to more than 100% cover. If the total percent cover sums to 200, there are likely duplicate scores for that location/photoplot.")
+
+# Check if photoplot tab returned any records to determine whether to plot that tab in report
+photoplot_check <- QC_table |> filter(Data %in% "Photoplot substrate" & Num_Records > 0)
 
 photoplot_include <- tab_include(photoplot_check)
 
+#---- Photoplot Motile Inverts -----
+micnt <- do.call(getMotileInvertCounts, arglist) |>
+  select(Site_Code, Loc_Code, Year, QAQC, Target_Species,
+         Plot_Name, Spp_Code, Spp_Name, Damage, No.Damage, Subsampled)
 
-#+++++++++++++++++++++ Checks to add +++++++++++++++++++++++
-#+ Find NAs in photoplot motile inverts
-#+ Find NAs in motile invert measurements (SHIHAR-2021-Barnacle-TECTES = NA)
-#+ Motile invert measurements > 99.9.
-#+ Show photoplot cover by site/year to see where plots haven't been scored yet.
-#+ Show echino counts that read in as NA
-#+ EchinoMeasures have a lot of 0s in 2019, but nowhere else. Show table of values
+# Find NAs
+micnt_nas <- micnt[!complete.cases(micnt),]
+
+QC_table <- rbind(QC_table, QC_check(micnt_nas, "Photoplot Motile Inverts",
+                                     "Photoplots with at least 1 NA in motile invertebrate count data."))
+
+micnt_nas_tbl <- make_kable(micnt_nas, "Photoplots with at least 1 NA in motile invertebrate count data.")
+
+# Find plots with > 99% for Damage or No.Damage, in case typo
+micnt99dam <- quantile(micnt$Damage, probs = 0.99, na.rm = T)
+micnt99nodam <- quantile(micnt$No.Damage, probs = 0.99, na.rm = T)
+
+micnt_99dam <- micnt |> filter(Damage > micnt99dam)
+QC_table <- rbind(QC_table, QC_check(micnt_99dam, "Photoplot Motile Inverts",
+                                     "Photoplots with a Damage count > 99% of all recorded sites and years."))
+
+micnt_99dam_tbl <- make_kable(micnt_99dam, "Photoplots with a Damage count > 99% of all recorded sites and years.")
+
+micnt_99nodam <- micnt |> filter(No.Damage > micnt99nodam)
+QC_table <- rbind(QC_table, QC_check(micnt_99nodam, "Photoplot Motile Inverts",
+                                     "Photoplots with a No.Damage count > 99% of all recorded sites and years."))
+
+micnt_99nodam_tbl <- make_kable(micnt_99nodam, "Photoplots with a No.Damage count > 99% of all recorded sites and years.")
+
+#---- Motile Invertebrate Measures ----
+mimeas <- do.call(getMotileInvertMeas, arglist) |> select(Site_Code, Loc_Code, Year, QAQC, Plot_Name, Spp_Code,
+                                                          Spp_Name, Measurement)
+mimeas_na <- mimeas[which(!complete.cases(mimeas)),]
+
+QC_table <- rbind(QC_table, QC_check(mimeas_na, "Photoplot Motile Inverts",
+                                     "Motile Inverts with NA measurement."))
+
+mimeas_nas_tbl <- make_kable(mimeas_na, "Motile Inverts with NA measurement.")
+
+
+# Measurements > 99.9mm (summary and plotting functions will fail)
+mimeas99.9 <- mimeas |> filter(Measurement > 99.9)
+
+QC_table <- rbind(QC_table, QC_check(mimeas99.9, "Photoplot Motile Inverts",
+                                     "Motile Inverts with a measurement > 99.9mm. The rockyIntertidal package is only programmed to handle measurements <99.9mm. If this is a true value, update sumMotileInvertMeas() and plotMotileInvertMeas() to allow for higher measurement classes."))
+
+mimeas_99.9_tbl <- make_kable(mimeas99.9, "Motile Inverts with a measurement > 99.9mm. The rockyIntertidal package is only programmed to handle measurements <99.9mm. If this is a true value, update sumMotileInvertMeas() and plotMotileInvertMeas() to allow for higher measurement classes.")
+
+# Measurements > 99% of recorded dataset
+mimeas_99 <- quantile(mimeas$Measurement, probs = 0.99, na.rm = T)
+mimeas99 <- mimeas |> filter(Measurement > mimeas_99)
+
+QC_table <- rbind(QC_table, QC_check(mimeas99, "Photoplot Motile Inverts",
+                                     "Motile Inverts with a measurement > 99% of all measurements recorded among all sites and years."))
+
+mimeas_99_tbl <- make_kable(mimeas99, "Motile Inverts with a measurement > 99% of all measurements recorded among all sites and years.")
+
+# Years with lots of 0s instead of measurements
+mimeas_0s <- mimeas |> mutate(zero = ifelse(Measurement == 0, 1, 0)) |>
+  group_by(Site_Code, Loc_Code, Year, QAQC) |>
+  summarize(num_0s = sum(zero), .groups = 'drop') |>
+  filter(num_0s > 0)
+
+QC_table <- rbind(QC_table, QC_check(mimeas_0s, "Photoplot Motile Inverts",
+                                     "Motile Invert sites and years that have measurements of 0."))
+
+mimeas_0_tbl <- make_kable(mimeas_0s, "Motile Invert sites and years that have measurements of 0.")
+
+# Check if photoplot tab returned any records to determine whether to plot that tab in report
+photoplot_mi_check <- QC_table |> filter(Data %in% "Photoplot Motile Inverts" & Num_Records > 0)
+
+photoplot_mi_include <- tab_include(photoplot_mi_check)
+
+#---- Echinoderms -----
+# Counts
+eccnt <- do.call(getEchinoCounts, arglist) |>
+  select(Site_Code, Loc_Code, Year, QAQC, Target_Species,
+         Plot_Name, Spp_Code, Spp_Name, Count)
+
+# Find NAs
+eccnt_nas <- eccnt[!complete.cases(eccnt),]
+
+QC_table <- rbind(QC_table, QC_check(eccnt_nas, "Echinoderms",
+                                     "Echinoderms with at least 1 NA in count data."))
+
+eccnt_nas_tbl <- make_kable(eccnt_nas, "Echinoderms with at least 1 NA in count data.")
+
+# Find plots with > 99% for Count, in case typo
+eccnt99 <- quantile(eccnt$Count, probs = 0.99, na.rm = T)
+
+eccnt_99 <- eccnt |> filter(Count > eccnt99)
+QC_table <- rbind(QC_table, QC_check(eccnt_99, "Echinoderms",
+                                     "Echinoderms with a count > 99% of all recorded sites and years."))
+
+eccnt_99_tbl <- make_kable(eccnt_99, "Echinoderms with a count > 99% of all recorded sites and years.")
+
+
+# Measures
+ecmeas <- do.call(getEchinoMeas, arglist) |> select(Site_Code, Loc_Code, Year, QAQC, Plot_Name, Spp_Code,
+                                                          Spp_Name, Measurement)
+ecmeas_na <- ecmeas[which(!complete.cases(ecmeas)),]
+
+QC_table <- rbind(QC_table, QC_check(ecmeas_na, "Echinoderms",
+                                     "Echinoderms with NA measurement."))
+
+ecmeas_nas_tbl <- make_kable(ecmeas_na, "Echinoderms with NA measurement.")
+
+# Measurements > 99.9mm (summary and plotting functions will fail)
+ecmeas99.9 <- ecmeas |> filter(Measurement > 99.9)
+
+QC_table <- rbind(QC_table, QC_check(ecmeas99.9, "Echinoderms",
+                                     "Echinoderms with a measurement > 99.9mm. The rockyIntertidal package is only programmed to handle measurements <99.9mm. If this is a true value, update sumEchinoMeas() and plotEchinoMeas() to allow for higher measurement classes."))
+
+ecmeas_99.9_tbl <- make_kable(ecmeas99.9, "Motile Inverts with a measurement > 99.9mm. The rockyIntertidal package is only programmed to handle measurements <99.9mm. If this is a true value, update sumEchinoMeas() and plotEchinoMeas() to allow for higher measurement classes.")
+
+# Measurements > 99% of recorded dataset
+ecmeas_99 <- quantile(ecmeas$Measurement, probs = 0.99, na.rm = T)
+ecmeas99 <- ecmeas |> filter(Measurement > ecmeas_99)
+
+QC_table <- rbind(QC_table, QC_check(ecmeas99, "Echinoderms",
+                                     "Echinoderms with a measurement > 99% of all measurements recorded among all sites and years."))
+
+ecmeas_99_tbl <- make_kable(ecmeas99, "Echinoderms with a measurement > 99% of all measurements recorded among all sites and years.")
+
+# Years with lots of 0s instead of measurements
+ecmeas_0s <- ecmeas |> mutate(zero = ifelse(Measurement == 0, 1, 0)) |>
+  group_by(Site_Code, Loc_Code, Year, QAQC) |>
+  summarize(num_0s = sum(zero), .groups = 'drop') |>
+  filter(num_0s > 0)
+
+QC_table <- rbind(QC_table, QC_check(ecmeas_0s, "Echinoderms",
+                                     "Echinoderm sites and years that have measurements of 0."))
+
+ecmeas_0_tbl <- make_kable(ecmeas_0s, "Echinoderm sites and years that have measurements of 0.")
+
+
+# Check if photoplot tab returned any records to determine whether to plot that tab in report
+echino_check <- QC_table |> filter(Data %in% "Echinoderms" & Num_Records > 0)
+
+echino_include <- tab_include(echino_check)
+
+
 
 #---- Final QC check table ----
 QC_check_table <- kable(QC_table, format = 'html', align = 'c', caption = "QC checking results",
