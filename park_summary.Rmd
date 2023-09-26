@@ -132,7 +132,7 @@ plotSpeciesContours(location = loc, years = years, plot_title = F)
 for(i in seq_along(locs$Loc_Code)){
   loc <- locs$Loc_Code[[i]]
   cat("#### ", loc, "\n\n")
-  cat("Smoothed site contours based on bolt elevation and transect distances averaged over all years. Species points represent point intercept detections for each of the 5 main species across the three point intercept transects per year. Symbols represent the median elevation for a species per year. Pie charts represent the median percent cover by species and median elevation across photoplots for each year. The five main species are: BARSPP, MUSSPP, ASCNOD, FUCSPP, and combined Red algae group.\n")
+  cat("Smoothed site contours based on bolt elevation and transect distances averaged over all years. Species points represent point intercept detections for each of the main species across the three point intercept transects per year. Symbols represent the median elevation for a species per year. Pie charts represent the median percent cover by species and median elevation across photoplots for each year. The five main species are: NONCOR, BARSPP, MUSSPP, ASCNOD, FUCSPP, and combined Red algae group. Fucus Epibiont and Ascophyllum Epibiont are lumped in with FUCSPP adn ASCNOD groups.\n")
   cat("\n\n")
   <<contour_chunk>>
   cat("\n\n")
@@ -218,14 +218,14 @@ htmltools::tagList(motinv_photo_plots)
 ```
 
 #### Motile Invert Measurements {.tabset}
-```{r mi_meas, results = 'hide', include = F, eval = run}
+```{r mi_meas, results = 'hide', include = F, eval = run, fig.height = 10, fig.width = 12}
 mi_meas_plots <- purrr::map(
   locs$Loc_Code, 
   ~plotMotileInvertMeas(park = park, location = ., years = years)) |> 
   set_names(locs$Loc_Code)
 ```
 
-```{r motinvm_chunk_pr, warning = FALSE, message = FALSE, out.height="200%", results = 'asis', eval = run}
+```{r motinvm_chunk_pr, warning = FALSE, message = FALSE, results = 'asis', eval = run, fig.height = 10, fig.width = 12}
 for(i in seq_along(locs$Loc_Code)){
   loc <- locs$Loc_Code[[i]]
   cat("##### ", loc, "\n")
@@ -252,7 +252,7 @@ for(i in seq_along(locs$Loc_Code)){
 ```{r warning = FALSE, message = FALSE, fig.height = 8, fig.width = 10, results = 'asis', eval = run}
 for(i in seq_along(targ_spp)){
   cat("##### ", targ_spp[[i]], "\n")
-  cat("Species percent cover by target species group across all lcoations. Points are median cover across photoplots. 
+  cat("Species percent cover by target species group across all locations. Points are median cover across photoplots. 
        Error bars are minimum and maximum cover recorded within a target species. Only top 3 species
        are plotted in each target species group, with tied species included.", "\n")
   print(photo_species_plots_park[[i]])
@@ -295,19 +295,19 @@ htmltools::tagList(echino_cnt_plot)
 # note that this has to be here for the previous code to knit, even though results aren't included in report.
 ```
 
-#### Echino Measurements
-```{r echinocm, include = F, results = 'hide'}
+#### Echino Measurements {.tabset}
+```{r echinocm, include = F, results = 'hide', fig.height = 10, fig.width = 12}
 echino_meas_plot <- purrr::map(locs$Loc_Code,
   ~plotEchinoMeas(park = park, location = ., years = years)) |> 
   set_names(locs$Loc_Code)
 ```
 
-```{r echinom_chunk_pr, warning = FALSE, message = FALSE, out.height="90%", results = 'asis', eval = run}
+```{r echinom_chunk_pr, warning = FALSE, message = FALSE, fig.height = 10, fig.width = 12, results = 'asis', eval = run}
 for(i in seq_along(locs$Loc_Code)){
   loc <- locs$Loc_Code[[i]]
   cat("##### ", loc, "\n")
   cat("Echinoderm counts counts by 5mm size class by species and target species group.", "\n\n")
-  print(echino_meas_plots[[loc]])
+  print(echino_meas_plot[[loc]])
   cat("\n\n") 
   cat("\n\n")
 }
