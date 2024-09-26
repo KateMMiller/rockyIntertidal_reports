@@ -52,19 +52,19 @@ check_null <- function(table){
 arglist <- list(park = park, years = year)
 
 locs <- do.call(getPIBoltDistance, arglist) |>
-  select(Loc_Code) |> unique() |> c() #|> as.character()
+  select(SiteCode) |> unique() |> c() #|> as.character()
 
 #----- Visit Notes -----
-notes_bolts <- getBolts(park = park) |>
+notes_bolts <- getBolts(park = park, dropNA = F) |>
   filter(!is.na(Notes)) |>
   mutate(Note_Type = "Bolts",
          Year = NA_real_,
-         Notes = paste0("Type: ", Plot_Type, "; Plot_Name:  ", Plot_Name,
+         Notes = paste0("Type: ", PlotType, "; PlotName:  ", PlotName,
                         "; Label: ", Label, "; Note: ", Notes)) |>
-  select(Loc_Code, Year, Note_Type, Notes)
+  select(SiteCode, Year, Note_Type, Notes)
 
-notes_events <- do.call(getEventNotes, arglist) |>
-  select(Loc_Code, Year, Notes_Conditions, Notes_Marker, Notes_Other, Notes_Additional_Spp)
+notes_events <- do.call(getEvents, arglist) |>
+  select(SiteCode, Year, Notes_Conditions, Notes_Marker, Notes_Other, Notes_Additional_Spp)
 
 notes_long <- notes_events |> pivot_longer(Notes_Conditions:Notes_Additional_Spp,
                                            names_to = "Note_Type", values_to = "Notes") |>
@@ -72,7 +72,7 @@ notes_long <- notes_events |> pivot_longer(Notes_Conditions:Notes_Additional_Spp
   mutate(Note_Type = substr(Note_Type, 7, nchar(Note_Type)))
 
 # Add other notes if they're stored in other places here
-notes_comb <- rbind(notes_long, notes_bolts) |> arrange(Loc_Code, Year, Note_Type)
+notes_comb <- rbind(notes_long, notes_bolts) |> arrange(SiteCode, Year, Note_Type)
 
 
 visit_table <- kable(notes_comb, format = 'html', align = c(rep('c', 2), 'l', 'l'),
@@ -87,10 +87,10 @@ include_visit_table <- tab_include(notes_comb)
 #----- Point intercept checks -----
 
 # Check for bolts with blank Elevation or Distance
-bolt_dist_na <- do.call(getPIBoltDistance, arglist) |>
+bolt_dist_na <- do.call(getPIBoltDistance, args = c(arglist, dropNA = F)) |>
   #getPIBoltDistance(park = park, years = year) |>
   filter(is.na(Elevation_MLLW_m) | is.na(Distance_m)) |>
-  select(Loc_Code, Year, Label, Elevation_MLLW_m, Distance_m, Notes_Event)
+  select(SiteCode, Year, Label, Elevation_MLLW_m, Distance_m)
 
 QC_table <- QC_check(bolt_dist_na, "PI Transect", "Bolts missing elevation or distance")
 
@@ -105,9 +105,9 @@ miss_bolt_elev_dist <- kable(bolt_dist_na, format = 'html', align = 'c',
   row_spec(nrow(bolt_dist_na), extra_css = 'border-bottom: 1px solid #000000;')
 
 # Check for bolts not labeled 1 with Distance of 0
-bolt_dist_0 <- do.call(getPIBoltDistance, arglist) |>
+bolt_dist_0 <- do.call(getPIBoltDistance, args = c(arglist, dropNA = F)) |>
   filter(!grepl("01", Label) & Distance_m == 0) |>
-  select(Loc_Code, Year, Label, Elevation_MLLW_m, Distance_m, Notes_Event)
+  select(SiteCode, Year, Label, Elevation_MLLW_m, Distance_m)
 
 QC_table <- rbind(QC_table,
                   QC_check(bolt_dist_0, "PI Transect", "Bolts with distance of 0 after first transect bolt"))
@@ -116,7 +116,7 @@ later_bolt_dist_0 <- make_kable(bolt_dist_0, "Bolts with distance of 0 after the
 
 # Check for impossible elevation and distance combinations between bolts (forces NANs in arcsin calc)
 spp_pi <- do.call(sumPISpecies, arglist) |>
-  group_by(Loc_Code, Spp_Code, Spp_Name) |>
+  group_by(SiteCode, CoverType, CoverCode) |>
   summarize(num_pis = sum(!is.na(PI_Distance)), .groups = 'drop')
 
 QC_table <- rbind(QC_table,
@@ -131,22 +131,22 @@ pit_include <- tab_include(pit_check)
 
 
 #---- Photoplot substrate checks ----
-pctcov <- do.call(getPhotoCover, arglist) |>
-  mutate(sampID1 = paste(Site_Code, Loc_Code, Year, sep = "_"),
+pctcov <- do.call(getPhotoCover, args = c(arglist, dropNA = F)) |>
+  mutate(sampID1 = paste(UnitCode, SiteCode, Year, sep = "_"),
          sampID = ifelse(QAQC == TRUE, paste0(sampID1, "_Q"), sampID1)) |>
-  select(sampID, Site_Code, Loc_Code, Start_Date, Year, QAQC, Plot_Name, Target_Species,
-         Spp_Code, Category, Perc_Cover, Notes)
+  select(sampID, UnitCode, SiteCode, StartDate, Year, QAQC, PlotName, CommunityType,
+         CoverCode, CoverType, PercentCover, Notes)
 
-table(pctcov$sampID, pctcov$Target_Species)
-table(pctcov$Loc_Code, pctcov$Year)
+table(pctcov$sampID, pctcov$CommunityType)
+table(pctcov$SiteCode, pctcov$Year)
 
 # All of 2019 data are missing in the db version I have. Need to make a skeleton df of 2018 to show blanks.
 # The if statement below only runs if 2019 is missing from the raw dataset
 if(!2019 %in% unique(pctcov$Year)){
-  table(pctcov$Loc_Code, pctcov$Year)
+  table(pctcov$SiteCode, pctcov$Year)
   cov19 <- pctcov |> filter(Year == 2018) |> filter(QAQC == FALSE)
-  cov19$Start_Date <- NA
-  cov19$Perc_Cover <- NA_real_
+  cov19$StartDate <- NA
+  cov19$PercentCover <- NA_real_
   cov19$sampID <- gsub("18", "19", cov19$sampID)
   cov19$Year <- 2019
   cov19 <- unique(cov19)
@@ -154,10 +154,10 @@ if(!2019 %in% unique(pctcov$Year)){
 }
 
 if(!2021 %in% unique(pctcov$Year)){
-  table(pctcov$Loc_Code, pctcov$Year)
+  table(pctcov$SiteCode, pctcov$Year)
   cov21 <- pctcov |> filter(Year == 2018) |> filter(QAQC == FALSE)
-  cov21$Start_Date <- NA
-  cov21$Perc_Cover <- NA_real_
+  cov21$StartDate <- NA
+  cov21$PercentCover <- NA_real_
   cov21$sampID <- gsub("18", "21", cov21$sampID)
   cov21$Year <- 2021
   cov21 <- unique(cov21)
@@ -165,26 +165,26 @@ if(!2021 %in% unique(pctcov$Year)){
 }
 
 # location/plot name combinations found in data to check for missing
-sample_combos <- pctcov |> select(Site_Code, Loc_Code, Target_Species, Plot_Name) |> unique() |>
-  group_by(Site_Code, Loc_Code, Target_Species) |>
-  summarize(num_plots = sum(!is.na(Plot_Name)),
+sample_combos <- pctcov |> select(UnitCode, SiteCode, CommunityType, PlotName) |> unique() |>
+  group_by(UnitCode, SiteCode, CommunityType) |>
+  summarize(num_plots = sum(!is.na(PlotName)),
             .groups = 'drop')
 
 # Check for photoplots that have been sampled before but are missing in at least one survey
 # Or that have duplicate data
-plot_check1 <- as.data.frame(table(pctcov$sampID, pctcov$Target_Species)) |>
+plot_check1 <- as.data.frame(table(pctcov$sampID, pctcov$CommunityType)) |>
   filter(Freq < 130 | Freq > 130) |> mutate(sampID = as.character(Var1), # 5 plots * 26 species = 130
-                               Target_Species = as.character(Var2),
+                               CommunityType = as.character(Var2),
                                numplots = as.numeric(Freq)) |>
-  select(sampID, Target_Species, numplots) |>
-  mutate(Loc_Code = substr(sampID, 6, 11),
+  select(sampID, CommunityType, numplots) |>
+  mutate(SiteCode = substr(sampID, 6, 11),
          Year = as.numeric(substr(sampID, 13, 16)))
 
 plot_check <- left_join(sample_combos |> select(-num_plots),
                         plot_check1,
-                        by = c("Loc_Code", "Target_Species")) |>
+                        by = c("SiteCode", "CommunityType")) |>
               filter(!is.na(numplots)) |>
-              select(Site_Code, Loc_Code, Year, Target_Species, numplots)
+              select(UnitCode, SiteCode, Year, CommunityType, numplots)
 
 
 QC_table <- rbind(QC_table,
@@ -194,8 +194,8 @@ photoplot_tbl <- make_kable(plot_check, "Photoplots either missing scores or wit
 
 
 # Find year/target species combinations that haven't been scored yet
-plot_check2 <- pctcov |> group_by(sampID, Loc_Code, Year, QAQC, Plot_Name, Target_Species) |>
-  summarize(num_pct_cov_NAs = sum(is.na(Perc_Cover)),
+plot_check2 <- pctcov |> group_by(sampID, SiteCode, Year, QAQC, PlotName, CommunityType) |>
+  summarize(num_pct_cov_NAs = sum(is.na(PercentCover)),
             .groups = 'keep') |> filter(num_pct_cov_NAs > 0)
 
 QC_table <- rbind(QC_table,
@@ -204,25 +204,25 @@ QC_table <- rbind(QC_table,
 photoplot2_tbl <- make_kable(plot_check2, "Photoplots that haven't been scored for the entire year.")
 
 
-# Check that each site has the same species list, and species not detected have a 0 for Perc_Cover.
-spp_combos <- pctcov |> select(Site_Code, Loc_Code, Spp_Code, Plot_Name) |> unique() |>
-  group_by(Site_Code, Loc_Code, Spp_Code) |>
-  summarize(numplots_max = sum(!is.na(Plot_Name)),
+# Check that each site has the same species list, and species not detected have a 0 for PercentCover.
+spp_combos <- pctcov |> select(UnitCode, SiteCode, CoverCode, PlotName) |> unique() |>
+  group_by(UnitCode, SiteCode, CoverCode) |>
+  summarize(numplots_max = sum(!is.na(PlotName)),
             .groups = 'drop')
 
-spp_check1 <- as.data.frame(table(pctcov$sampID, pctcov$Spp_Code)) |>
+spp_check1 <- as.data.frame(table(pctcov$sampID, pctcov$CoverCode)) |>
   filter(Freq < 26 | Freq > 26) |> mutate(sampID = as.character(Var1), # 5 plots * 26 species = 130
-                                          Spp_Code = as.character(Var2),
+                                          CoverCode = as.character(Var2),
                                           numplots_samp = as.numeric(Freq)) |>
-  select(sampID, Spp_Code, numplots_samp) |>
-  mutate(Loc_Code = substr(sampID, 6, 11),
+  select(sampID, CoverCode, numplots_samp) |>
+  mutate(SiteCode = substr(sampID, 6, 11),
          Year = as.numeric(substr(sampID, 13, 16)))
 
 spp_check <- left_join(spp_combos,
                         spp_check1,
-                        by = c("Loc_Code", "Spp_Code")) |>
+                        by = c("SiteCode", "CoverCode")) |>
   filter(!is.na(numplots_samp)) |>
-  select(Site_Code, Loc_Code, Year, Spp_Code, numplots_max, numplots_samp) |>
+  select(UnitCode, SiteCode, Year, CoverCode, numplots_max, numplots_samp) |>
   filter(numplots_max != numplots_samp)
 
 QC_table <- rbind(QC_table,
@@ -232,8 +232,8 @@ QC_table <- rbind(QC_table,
 spp_plot_tbl <- make_kable(spp_check, "Photoplots either missing a species % cover that was recorded in a past survey or having duplicate percent cover. Will only return missing species for plotoplots that have been sampled at least one year in a given location.")
 
 # Check for covers that sum to >100%
-pctcov_sum <- pctcov |> group_by(sampID, Loc_Code, Year, QAQC, Plot_Name, Target_Species) |>
-  summarize(tot_pctcov = sum(Perc_Cover, na.rm = T), .groups = 'drop') |> filter(tot_pctcov > 100)
+pctcov_sum <- pctcov |> group_by(sampID, SiteCode, Year, QAQC, PlotName, CommunityType) |>
+  summarize(tot_pctcov = sum(PercentCover, na.rm = T), .groups = 'drop') |> filter(tot_pctcov > 100)
 
 QC_table <- rbind(QC_table, QC_check(pctcov_sum, "Photoplot substrate",
                                      "Photoplots that sum to more than 100% cover. If the total percent cover sums to 200, there are likely duplicate scores for that location/photoplot."))
@@ -247,8 +247,8 @@ photoplot_include <- tab_include(photoplot_check)
 
 #---- Photoplot Motile Inverts -----
 micnt <- do.call(getMotileInvertCounts, arglist) |>
-  select(Site_Code, Loc_Code, Year, QAQC, Target_Species,
-         Plot_Name, Spp_Code, Spp_Name, Damage, No.Damage, Subsampled)
+  select(UnitCode, SiteCode, Year, QAQC, CommunityType,
+         PlotName, SpeciesCode, ScientificName, CommonName, Damage, No.Damage, Subsampled)
 
 # Find NAs
 micnt_nas <- micnt[!complete.cases(micnt),]
@@ -275,8 +275,8 @@ QC_table <- rbind(QC_table, QC_check(micnt_99nodam, "Photoplot Motile Inverts",
 micnt_99nodam_tbl <- make_kable(micnt_99nodam, "Photoplots with a No.Damage count > 99% of all recorded sites and years.")
 
 #---- Motile Invertebrate Measures ----
-mimeas <- do.call(getMotileInvertMeas, arglist) |> select(Site_Code, Loc_Code, Year, QAQC, Plot_Name, Spp_Code,
-                                                          Spp_Name, Measurement)
+mimeas <- do.call(getMotileInvertMeas, arglist) |> select(UnitCode, SiteCode, Year, QAQC, PlotName, SpeciesCode,
+                                                          ScientificName, CommonName, Measurement)
 mimeas_na <- mimeas[which(!complete.cases(mimeas)),]
 
 QC_table <- rbind(QC_table, QC_check(mimeas_na, "Photoplot Motile Inverts",
@@ -304,7 +304,7 @@ mimeas_99_tbl <- make_kable(mimeas99, "Motile Inverts with a measurement > 99% o
 
 # Years with lots of 0s instead of measurements
 mimeas_0s <- mimeas |> mutate(zero = ifelse(Measurement == 0, 1, 0)) |>
-  group_by(Site_Code, Loc_Code, Year, QAQC) |>
+  group_by(UnitCode, SiteCode, Year, QAQC) |>
   summarize(num_0s = sum(zero), .groups = 'drop') |>
   filter(num_0s > 0)
 
@@ -320,9 +320,11 @@ photoplot_mi_include <- tab_include(photoplot_mi_check)
 
 #---- Echinoderms -----
 # Counts
+#++++++ ENDED HERE +++++++
+
 eccnt <- do.call(getEchinoCounts, arglist) |>
-  select(Site_Code, Loc_Code, Year, QAQC, Target_Species,
-         Plot_Name, Spp_Code, Spp_Name, Count)
+  select(UnitCode, SiteCode, Year, QAQC, CommunityType,
+         PlotName, Spp_Code, Spp_Name, Count)
 
 # Find NAs
 eccnt_nas <- eccnt[!complete.cases(eccnt),]
@@ -343,7 +345,7 @@ eccnt_99_tbl <- make_kable(eccnt_99, "Echinoderms with a count > 99% of all reco
 
 
 # Measures
-ecmeas <- do.call(getEchinoMeas, arglist) |> select(Site_Code, Loc_Code, Year, QAQC, Plot_Name, Spp_Code,
+ecmeas <- do.call(getEchinoMeas, arglist) |> select(UnitCode, SiteCode, Year, QAQC, PlotName, Spp_Code,
                                                           Spp_Name, Measurement)
 ecmeas_na <- ecmeas[which(!complete.cases(ecmeas)),]
 
@@ -371,7 +373,7 @@ ecmeas_99_tbl <- make_kable(ecmeas99, "Echinoderms with a measurement > 99% of a
 
 # Years with lots of 0s instead of measurements
 ecmeas_0s <- ecmeas |> mutate(zero = ifelse(Measurement == 0, 1, 0)) |>
-  group_by(Site_Code, Loc_Code, Year, QAQC) |>
+  group_by(UnitCode, SiteCode, Year, QAQC) |>
   summarize(num_0s = sum(zero), .groups = 'drop') |>
   filter(num_0s > 0)
 

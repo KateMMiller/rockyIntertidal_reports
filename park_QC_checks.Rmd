@@ -7,7 +7,7 @@ output:
       in_header: "header_manual.html"
 
 params:
-  year_curr: 2021 # Current year of sampling
+  year_curr: 2023 # Current year of sampling
   park: "ACAD"
   all_years: TRUE # If FALSE, only reports on year_curr; TRUE reports on all years
   
@@ -36,7 +36,7 @@ year = if(params$all_years == TRUE){2013:year_curr} else {year_curr}
 arglist <- list(park = park, years = year)
 
 locs <- do.call(getPIBoltDistance, arglist) |>
-  select(Loc_Code) |> unique() |> c() #|> as.character()
+  select(SiteCode) |> unique() |> c() #|> as.character()
 ```
 
 Rocky intertidal Quality Control checking for `r params$park` and `r paste(year, collapse = ", ")` {.tabset .tabset-pills}
