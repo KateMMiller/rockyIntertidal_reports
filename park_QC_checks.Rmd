@@ -7,7 +7,7 @@ output:
       in_header: "header_manual.html"
 
 params:
-  year_curr: 2023 # Current year of sampling
+  year_curr: 2024 # Current year of sampling
   park: "ACAD"
   all_years: TRUE # If FALSE, only reports on year_curr; TRUE reports on all years
   
@@ -49,45 +49,45 @@ source('park_QC_checks_compile.R')
 ```{r, warning = FALSE, message = FALSE, results = 'hide', include = FALSE}
 #---- Plotting bolt elevation by distance -----
 trans_contour_plots <- 
-  purrr::map(locs$Loc_Code, 
+  purrr::map(locs$SiteCode, 
              ~plotPITransects(
-               location = ., xlab = "Distance (m)", ylab = "Elevation MLLW (m)", 
-               title = TRUE, years = 2013:year_curr)) |> set_names(locs$Loc_Code)
+               site = ., xlab = "Distance (m)", ylab = "Elevation MLLW (m)", 
+               title = TRUE, years = 2013:year_curr)) |> set_names(locs$SiteCode)
 
 #---- Plotting species by elevation -----
 trans_species_plots <- 
-  purrr::map(locs$Loc_Code,
-             ~plotPISpecies(location = ., xlab = "Year", ylab = "Elevation MLLW (m)", 
+  purrr::map(locs$SiteCode,
+             ~plotPISpecies(site = ., xlab = "Year", ylab = "Elevation MLLW (m)", 
                                     title = TRUE, years = 2013:year_curr, facet = T) +
     theme(legend.position = 'bottom',
           legend.text = element_text(size = 10),
           legend.key.size = unit(0.5, 'cm'),
           legend.key.width = unit(0.5, 'cm'),
           legend.key.height = unit(0.5, 'cm'),
-          legend.title = element_blank())) |> set_names(locs$Loc_Code)
+          legend.title = element_blank())) |> set_names(locs$SiteCode)
 
 #---- Plotting photoplot cover by target species and site ----
-photo_species_plots <- purrr::map(locs$Loc_Code,
-  ~plotPhotoCover(location = ., top_spp = 3, years = 2013:year_curr, plotly = T)                                
-  ) |> set_names(locs$Loc_Code)
+photo_species_plots <- purrr::map(locs$SiteCode,
+  ~plotPhotoCover(site = ., top_spp = 3, years = 2013:year_curr, plotly = T)                                
+  ) |> set_names(locs$SiteCode)
 
 
 #---- Plotting motile invert counts by target species and site ----
-motinv_species_plots <- purrr::map(locs$Loc_Code,
-  ~plotMotileInvertCounts(location = ., main_groups = TRUE, years = 2013:year_curr, 
-                          plotly = T)) |> set_names(locs$Loc_Code)
+motinv_species_plots <- purrr::map(locs$SiteCode,
+  ~plotMotileInvertCounts(site = ., main_groups = TRUE, years = 2013:year_curr, 
+                          plotly = T)) |> set_names(locs$SiteCode)
 
 #---- Plotting motile invert measures by target species and site ----
-motinv_meas_plots <- purrr::map(locs$Loc_Code,
-  ~plotMotileInvertMeas(location = ., years = 2013:year_curr)) |> 
-  set_names(locs$Loc_Code)
+motinv_meas_plots <- purrr::map(locs$SiteCode,
+  ~plotMotileInvertMeas(site = ., years = 2013:year_curr)) |> 
+  set_names(locs$SiteCode)
 
 #---- Plotting echinorderm counts by site
-echino_cnt_plots <- purrr::map(locs$Loc_Code,
-  ~plotEchinoCounts(location = ., years = 2013:year_curr, plotly = T)) |> set_names(locs$Loc_Code)
+echino_cnt_plots <- purrr::map(locs$SiteCode,
+  ~plotEchinoCounts(site = ., years = 2013:year_curr, plotly = T)) |> set_names(locs$SiteCode)
 
-echino_meas_plots <- purrr::map(locs$Loc_Code,
-  ~plotEchinoMeas(loc = ., years = 2013:year_curr)) |> set_names(locs$Loc_Code)
+echino_meas_plots <- purrr::map(locs$SiteCode,
+  ~plotEchinoMeas(site = ., years = 2013:year_curr)) |> set_names(locs$SiteCode)
 
 ```
 
@@ -120,8 +120,8 @@ check_null(bolt_check_tbl)
 
 #### Transect Contour Plots {.tabset}
 ```{r warning = FALSE, message = FALSE, out.width='100%', out.height = '95%', results = 'asis'}
-for(i in seq_along(locs$Loc_Code)){
-   loc <- locs$Loc_Code[[i]]
+for(i in seq_along(locs$SiteCode)){
+   loc <- locs$SiteCode[[i]]
    cat("##### ", loc, "\n")
    print(trans_contour_plots[[loc]])
    cat("\n\n")
@@ -130,8 +130,8 @@ for(i in seq_along(locs$Loc_Code)){
 
 #### Transect Species Plots {.tabset}
 ```{r warning = FALSE, message = FALSE, fig.height = 12, fig.width = 10,  results = 'asis'}
-for(i in seq_along(locs$Loc_Code)){
-  loc <- locs$Loc_Code[[i]]
+for(i in seq_along(locs$SiteCode)){
+  loc <- locs$SiteCode[[i]]
   cat("##### ", loc, "\n")
   cat("Point Intercept species by elevation. Points are median elevation across 3 transects. 
        Wider lines are the middle 25% and 75% quartiles. Thin lines are minimum and maximum elevations 
@@ -195,8 +195,8 @@ cat("</details>")
 
 #### Substrate Species Plots {.tabset}
 ```{r warning = FALSE, message = FALSE, fig.height = 10, fig.width = 12,  results = 'asis'}
-for(i in seq_along(locs$Loc_Code)){
-  loc <- locs$Loc_Code[[i]]
+for(i in seq_along(locs$SiteCode)){
+  loc <- locs$SiteCode[[i]]
   cat("##### ", loc, "\n")
   cat("Species percent cover by target species group. Points are median cover across photoplots. 
        Error bars are middle 50% cover recorded within a target species. Only top 3 species
@@ -213,8 +213,8 @@ htmltools::tagList(photo_species_plots)
 
 #### Motile Invert. Counts {.tabset}
 ```{r warning = FALSE, message = FALSE, fig.height = 10, fig.width = 12,  results = 'asis'}
-for(i in seq_along(locs$Loc_Code)){
-  loc <- locs$Loc_Code[[i]]
+for(i in seq_along(locs$SiteCode)){
+  loc <- locs$SiteCode[[i]]
   cat("##### ", loc, "\n")
   cat("Motile invertebrate count data showing the median count across photoplots as the points. 
        Error bars are middle 50% distribution of counts recorded within a target species. ", "\n")
@@ -230,8 +230,8 @@ htmltools::tagList(motinv_species_plots)
 
 #### Motile Invert. Measurements {.tabset}
 ```{r warning = FALSE, message = FALSE, fig.height = 10, fig.width = 12,  results = 'asis'}
-for(i in seq_along(locs$Loc_Code)){
-  loc <- locs$Loc_Code[[i]]
+for(i in seq_along(locs$SiteCode)){
+  loc <- locs$SiteCode[[i]]
   cat("##### ", loc, "\n")
   cat("Motile invertebrate measurement data across years. ", "\n")
   print(motinv_meas_plots[[loc]])
@@ -263,8 +263,8 @@ cat("</details>")
 
 #### Echinoderm Counts {.tabset}
 ```{r warning = FALSE, message = FALSE, fig.height = 10, fig.width = 12,  results = 'asis'}
-for(i in seq_along(locs$Loc_Code)){
-  loc <- locs$Loc_Code[[i]]
+for(i in seq_along(locs$SiteCode)){
+  loc <- locs$SiteCode[[i]]
   cat("##### ", loc, "\n")
   cat("Echinoderm count data showing the median count across photoplots as the points. 
        Error bars are middle 50% distribution of counts recorded within a target species. ", "\n")
@@ -280,8 +280,8 @@ htmltools::tagList(echino_cnt_plots)
 
 #### Echinoderm Measurements {.tabset}
 ```{r warning = FALSE, message = FALSE, fig.height = 10, fig.width = 12,  results = 'asis'}
-for(i in seq_along(locs$Loc_Code)){
-  loc <- locs$Loc_Code[[i]]
+for(i in seq_along(locs$SiteCode)){
+  loc <- locs$SiteCode[[i]]
   cat("##### ", loc, "\n")
   cat("Echinoderm measurement data across years. ", "\n")
   print(echino_meas_plots[[loc]])

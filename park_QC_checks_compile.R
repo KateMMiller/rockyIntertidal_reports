@@ -320,11 +320,9 @@ photoplot_mi_include <- tab_include(photoplot_mi_check)
 
 #---- Echinoderms -----
 # Counts
-#++++++ ENDED HERE +++++++
-
 eccnt <- do.call(getEchinoCounts, arglist) |>
-  select(UnitCode, SiteCode, Year, QAQC, CommunityType,
-         PlotName, Spp_Code, Spp_Name, Count)
+  select(UnitCode, SiteCode, Year, QAQC,
+         PlotName, SpeciesCode, ScientificName, Count)
 
 # Find NAs
 eccnt_nas <- eccnt[!complete.cases(eccnt),]
@@ -345,8 +343,8 @@ eccnt_99_tbl <- make_kable(eccnt_99, "Echinoderms with a count > 99% of all reco
 
 
 # Measures
-ecmeas <- do.call(getEchinoMeas, arglist) |> select(UnitCode, SiteCode, Year, QAQC, PlotName, Spp_Code,
-                                                          Spp_Name, Measurement)
+ecmeas <- do.call(getEchinoMeas, arglist) |> select(UnitCode, SiteCode, Year, QAQC, PlotName, SpeciesCode,
+                                                    ScientificName, Measurement)
 ecmeas_na <- ecmeas[which(!complete.cases(ecmeas)),]
 
 QC_table <- rbind(QC_table, QC_check(ecmeas_na, "Echinoderms",
@@ -387,8 +385,6 @@ ecmeas_0_tbl <- make_kable(ecmeas_0s, "Echinoderm sites and years that have meas
 echino_check <- QC_table |> filter(Data %in% "Echinoderms" & Num_Records > 0)
 
 echino_include <- tab_include(echino_check)
-
-
 
 #---- Final QC check table ----
 QC_check_table <- kable(QC_table, format = 'html', align = 'c', caption = "QC checking results",
