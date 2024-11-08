@@ -7,7 +7,7 @@ output:
       in_header: "header_manual.html"
 
 params:
-  year_curr: 2021
+  year_curr: 2024
   park: "ACAD"
   all_years: TRUE # If FALSE, only reports on year_curr; TRUE reports on all years; Not enabled yet
 ---
@@ -31,14 +31,14 @@ library(htmltools)
 
 ```{r imports2, include = FALSE, cache = T}
 importData()
-path = "../data/rocky/temp_data/Compiled_HT_water_temps/"
+path = "Z:/PROJECTS/MONITORING/Rocky_Intertidal/NETN/5_Data/2_DataFiles/Temperature/Compiled_HT_water_temps_2011-2022/"
 importWaterTemp(path = path, simplify = T, buoy = T)
 ```
 
 ```{r params, include = FALSE, eval = F}
 park = "ACAD"
-year_curr = 2021
-years = 2013:2021
+year_curr = 2024
+years = 2013:2024
 
 ```
 ```{r params_real, include = F}
@@ -53,11 +53,11 @@ years = if(params$all_years == TRUE){2013:year_curr} else {year_curr}
 arglist <- list(park = park, years = years)
 
 locs <- do.call(getPIBoltDistance, arglist) |>
-  select(Loc_Code) |> arrange(Loc_Code) |> unique() |> c() #|> as.character()
+  select(SiteCode) |> arrange(SiteCode) |> unique() |> c() #|> as.character()
 
 trans_species <- do.call(getPISpecies, arglist) |> 
-  select(Spp_Code) |> arrange(Spp_Code) |> unique() |> 
-  filter(!Spp_Code %in% c("BOLT", "ROCK", "WATER", NA, "OTHSUB", "OTHINV", "UNIDEN")) |> 
+  select(CoverCode) |> arrange(CoverCode) |> unique() |> 
+  filter(!CoverCode %in% c("BOLT", "ROCK", "WATER", NA, "OTHSUB", "OTHINV", "UNIDEN")) |> 
   c()
 
 trans_species_com <- switch(park, 
@@ -86,13 +86,13 @@ targ_spp <- switch(park,
 ```
 
 ```{r, contour_chunk, warning = FALSE, message = FALSE, eval = FALSE}
-plotSpeciesContours(location = loc, years = years, plot_title = F)
+plotSpeciesContours(site = loc, years = years, plot_title = F)
 ```
 
 ### Site Contours {.tabset}
 ```{r warning = FALSE, message = FALSE, results = 'asis', fig.height = 9, out.width = "160%", eval = run}
-for(i in seq_along(locs$Loc_Code)){
-  loc <- locs$Loc_Code[[i]]
+for(i in seq_along(locs$SiteCode)){
+  loc <- locs$SiteCode[[i]]
   cat("#### ", loc, "\n\n")
   cat("Smoothed site contours based on bolt elevation and transect distances averaged over all years. Species points represent point intercept detections for each of the main species across the three point intercept transects per year. Symbols represent the median elevation for a species per year. Pie charts represent the median percent cover by species and median elevation across photoplots for each year. The five main species are: NONCOR, BARSPP, MUSSPP, ASCNOD, FUCSPP, and combined Red algae group. Fucus Epibiont and Ascophyllum Epibiont are lumped in with FUCSPP adn ASCNOD groups.\n")
   cat("\n\n")
@@ -114,20 +114,20 @@ trans_spp_plotly
 
 ```{r motinv_chunk, results = 'hide', include = F, eval = run}
 motinv_photo_plots <- list()
-motinv_photo_plots <- purrr::map(locs$Loc_Code,
+motinv_photo_plots <- purrr::map(locs$SiteCode,
   function(loc){
   subp <-
      plotly::subplot(
-       plotMotileInvertCounts(location = loc, main_groups = TRUE,
+       plotMotileInvertCounts(site = loc, main_groups = TRUE,
                               plotly = T, years = 2013:2018, xaxis = F),
-       plotPhotoCover(location = loc, main_groups = T, plotly = T, years = 2013:2018),
+       plotPhotoCover(site = loc, main_groups = T, plotly = T, years = 2013:2018),
        nrows = 2, margin = c(0.1, 0.05, 0.05, 0.05),
        shareY = FALSE, titleY = T, titleX = T
     ) |> layout(width = 900, height = 750)
     subp$x$layout$yaxis$title <- "Median Count"
     subp$x$layout$yaxis2$title <- "Median % Cover"
     subp
-    }) |> set_names(locs$Loc_Code)
+    }) |> set_names(locs$SiteCode)
     
 #assign("motinv_photo_plots", motinv_photo_plots, envir = .GlobalEnv)
 
@@ -135,8 +135,8 @@ motinv_photo_plots <- purrr::map(locs$Loc_Code,
 
 
 ```{r motinv_chunk_pr, warning = FALSE, message = FALSE, out.height="90%", results = 'asis', eval = run}
-for(i in seq_along(locs$Loc_Code)){
-  loc <- locs$Loc_Code[[i]]
+for(i in seq_along(locs$SiteCode)){
+  loc <- locs$SiteCode[[i]]
   cat("##### ", loc, "\n")
   cat("Motile Invertebrate median counts and substrate species percent cover by target species group. 
        Points are median values (ie count or cover) across photoplots. Ribbons are lower 25% and upper 75%
@@ -154,14 +154,14 @@ htmltools::tagList(motinv_photo_plots)
 #### Motile Invert Measurements {.tabset}
 ```{r mi_meas, results = 'hide', include = F, eval = run, fig.height = 10, fig.width = 12}
 mi_meas_plots <- purrr::map(
-  locs$Loc_Code, 
-  ~plotMotileInvertMeas(park = park, location = ., years = years)) |> 
-  set_names(locs$Loc_Code)
+  locs$SiteCode, 
+  ~plotMotileInvertMeas(park = park, site = ., years = years)) |> 
+  set_names(locs$SiteCode)
 ```
 
 ```{r motinvm_chunk_pr, warning = FALSE, message = FALSE, results = 'asis', eval = run , fig.height = 10, fig.width = 12}
-for(i in seq_along(locs$Loc_Code)){
-  loc <- locs$Loc_Code[[i]]
+for(i in seq_along(locs$SiteCode)){
+  loc <- locs$SiteCode[[i]]
   cat("##### ", loc, "\n")
   cat("Motile Invertebrate counts by 5mm size class by species and target species group.", "\n\n")
   print(mi_meas_plots[[loc]])
@@ -173,14 +173,14 @@ for(i in seq_along(locs$Loc_Code)){
 ### Echinoderms {.tabset}
 #### Echino Counts {.tabset}
 ```{r echinocts, include = F, results = 'hide'}
-echino_cnt_plot <- purrr::map(locs$Loc_Code,
-  ~plotEchinoCounts(park = park, location = ., years = years, plotly = TRUE)) |> 
-  set_names(locs$Loc_Code)
+echino_cnt_plot <- purrr::map(locs$SiteCode,
+  ~plotEchinoCounts(park = park, site = ., years = years, plotly = TRUE)) |> 
+  set_names(locs$SiteCode)
 ```
 
 ```{r echino_chunk_pr, warning = FALSE, message = FALSE, out.height="150%", results = 'asis', eval = run}
-for(i in seq_along(locs$Loc_Code)){
-  loc <- locs$Loc_Code[[i]]
+for(i in seq_along(locs$SiteCode)){
+  loc <- locs$SiteCode[[i]]
   cat("##### ", loc, "\n")
   cat("Mean Echinoderm counts by year. Points are median counts across tidepools. Ribbons are lower 25% and upper 75%
        distribution.", "\n\n")
@@ -196,13 +196,13 @@ htmltools::tagList(echino_cnt_plot)
 
 #### Echino Measurements {.tabset}
 ```{r echinocm, include = F, results = 'hide', fig.height = 10, fig.width = 12}
-echino_meas_plot <- purrr::map(locs$Loc_Code,
-  ~plotEchinoMeas(park = park, location = ., years = years)) |> set_names(locs$Loc_Code)
+echino_meas_plot <- purrr::map(locs$SiteCode,
+  ~plotEchinoMeas(park = park, site = ., years = years)) |> set_names(locs$SiteCode)
 ```
 
 ```{r echinom_chunk_pr, warning = FALSE, message = FALSE, results = 'asis', eval = run, fig.height = 10, fig.width = 12}
-for(i in seq_along(locs$Loc_Code)){
-  loc <- locs$Loc_Code[[i]]
+for(i in seq_along(locs$SiteCode)){
+  loc <- locs$SiteCode[[i]]
   cat("##### ", loc, "\n")
   cat("Echinoderm counts counts by 5mm size class by species and target species group.", "\n\n")
   print(echino_meas_plot[[loc]])
@@ -218,7 +218,7 @@ suppressWarnings(plotBuoyData(park = park, years = year, metric = 'all', facet_c
 ```
 
 ```{r year_water, echo = F, eval = F, out.width = "100%", eval = FALSE}
-suppressWarnings(print(plotWaterTemp(park = park, location = loc, legend_position = "none",
+suppressWarnings(print(plotWaterTemp(park = park, site = loc, legend_position = "none",
                                      years = year, facet = F, plotly = F, palette = "greyscale")))
 ```
 
@@ -230,8 +230,8 @@ for(i in seq_along(years)){
   <<year_buoy>>
     cat("\n\n")
   cat("High tide water temperature (F) for ", year, " by site.", "\n\n")
-    for(j in seq_along(locs$Loc_Code)){
-      loc = locs$Loc_Code[[j]]
+    for(j in seq_along(locs$SiteCode)){
+      loc = locs$SiteCode[[j]]
       cat("<details open><summary class = 'drop'>", loc, "</summary>")
       <<year_water>>
         cat("\n\n")
@@ -251,25 +251,25 @@ photo1 <- suppressWarnings(getPhotoCover(park = park, plotName = 'all',
                                          species = c("ASCNOD",  "ASCEPI", "BARSPP",
                                                      "FUCSPP", "FUCEPI",
                                                      "MUSSPP", "ALGRED", "CHOMAS"),
-                                         target_species = 'all')) 
+                                         community = 'all')) 
 
-photo <- photo1 |> mutate(Spp_Code = case_when(Spp_Code %in% c("ALGRED", "CHOMAS") ~ "REDGRP",
-                                               Spp_Code %in% c("FUCSPP", "FUCEPI") ~ "FUCSPP",
-                                               Spp_Code %in% c("ASCNOD", "ASCEPI") ~ "ASCNOD",
-                                               TRUE ~ Spp_Code),
-                          Spp_Name = case_when(Spp_Code %in% "REDGRP" ~ "Red algae group",
-                                               Spp_Code %in% "FUCSPP" ~ "Fucus spp. (Rockweed)",
-                                               Spp_Code %in% "ASCNOD" ~ "A. nodosum (knotted wrack)",
-                                               TRUE ~ Spp_Name))
+photo <- photo1 |> mutate(CoverCode = case_when(CoverCode %in% c("ALGRED", "CHOMAS") ~ "REDGRP",
+                                                CoverCode %in% c("FUCSPP", "FUCEPI") ~ "FUCSPP",
+                                                CoverCode %in% c("ASCNOD", "ASCEPI") ~ "ASCNOD",
+                                                TRUE ~ CoverCode),
+                          ScientificName = case_when(CoverCode %in% "REDGRP" ~ "Red algae group",
+                                                     CoverCode %in% "FUCSPP" ~ "Fucus spp. (Rockweed)",
+                                                     CoverCode %in% "ASCNOD" ~ "A. nodosum (knotted wrack)",
+                                                     TRUE ~ ScientificName))
 
 # combine cover for red group
-photo_sum1 <- photo |> group_by(Site_Code, Loc_Code, Year, Spp_Code, Plot_Name,
-                                Target_Species, Bolt_MLLW_Elev) |>
-                       summarize(tot_cov = sum(Perc_Cover, na.rm = T),
+photo_sum1 <- photo |> group_by(UnitCode, SiteCode, Year, CoverCode, PlotName,
+                                CommunityType, Bolt_MLLW_Elev) |>
+                       summarize(tot_cov = sum(PercentCover, na.rm = T),
                                 .groups = 'drop') |> ungroup()
 
 # summarize median cover
-photo_sum <- photo_sum1 |> group_by(Site_Code, Loc_Code, Year, Target_Species, Spp_Code) |>
+photo_sum <- photo_sum1 |> group_by(UnitCode, SiteCode, Year, CommunityType, CoverCode) |>
                            summarize(avg_cover = mean(tot_cov, na.rm = T),
                                      med_cover = median(tot_cov, na.rm = T),
                                      elev = median(Bolt_MLLW_Elev, na.rm = T),
@@ -283,19 +283,19 @@ spdat1 <- suppressWarnings(sumPISpecies(park = park, plotName = 'all',
                                                     "MUSSPP", "ALGRED", "CHOMAS")))
 
 # Combine ALGRED and CHOMAS
-spdat <- spdat1 |> mutate(Spp_Code = ifelse(Spp_Code %in% c("ALGRED", "CHOMAS"), "REDGRP", Spp_Code),
-                          Spp_Name = ifelse(Spp_Code %in% "REDGRP", "Red algae group", Spp_Name))
+spdat <- spdat1 |> mutate(CoverCode = ifelse(CoverCode %in% c("ALGRED", "CHOMAS"), "REDGRP", CoverCode),
+                          CoverType = ifelse(CoverCode %in% "REDGRP", "Red algae group", CoverType))
 
-trdat <- spdat |> select(Site_Code, Loc_Code, #Year, Plot_Name,
+trdat <- spdat |> select(UnitCode, SiteCode, #Year, Plot_Name,
                          elev = PI_Elevation, dist = PI_Distance) |> #dist = Distance_m) |>
                     unique() |> na.omit()
-locs1 <- unique(spdat$Loc_Code)
+locs1 <- unique(spdat$SiteCode)
 
 # Smooth contours across all transects and years
 trsm <- purrr::map_dfr(seq_along(locs1), 
      function(loc){
        loccode <- locs1[loc]
-       dat <- trdat |> filter(Loc_Code == loccode)                  
+       dat <- trdat |> filter(SiteCode == loccode)                  
        smooth <- loess(dist ~ elev, data = dat, span = 0.6)
        cbind(dat, dist_pred = predict(smooth, dat))
 })
@@ -304,9 +304,9 @@ trsm <- purrr::map_dfr(seq_along(locs1),
 photo_dist <- purrr::map_dfr(seq_along(locs1), 
      function(loc){
        loccode <- locs1[loc]
-       datsm <- trdat |> filter(Loc_Code == loccode)                  
+       datsm <- trdat |> filter(SiteCode == loccode)                  
        smooth <- loess(dist ~ elev, data = datsm, span = 0.6)
-       photosm <- photo_sum |> filter(Loc_Code == loccode)
+       photosm <- photo_sum |> filter(SiteCode == loccode)
        cbind(photosm, dist_pred = predict(smooth, photosm))
 })
     
@@ -314,23 +314,23 @@ photo_dist <- purrr::map_dfr(seq_along(locs1),
   # won't predict a distance value for those elevations. Replacing NA with farthest distance in trsm_dat
   # SHIHAR Ascophyllum photoplots are higher than the transect elevations. Adjusting by changing the max
   # elevation for Ascophyllum to be close to median of Asco point intercepts from 2013
-  max_dist <- trsm |> group_by(Loc_Code) |> summarize(max_dist = max(dist_pred, na.rm = T))
+  max_dist <- trsm |> group_by(SiteCode) |> summarize(max_dist = max(dist_pred, na.rm = T))
   shidist <- 0.553
 
-  photo_dist2 <- left_join(photo_dist, max_dist, by = "Loc_Code")
+  photo_dist2 <- left_join(photo_dist, max_dist, by = "SiteCode")
   
   photo_dist2 <- photo_dist2 |> 
-    mutate(dist_pred = ifelse(is.na(dist_pred) & Target_Species == "Red Algae", max_dist, 
-                              ifelse(is.na(dist_pred) & Target_Species == "Ascophyllum" &
-                                       Loc_Code == "SHIHAR", 0.533, dist_pred))) |> select(-max_dist)
+    mutate(dist_pred = ifelse(is.na(dist_pred) & CommunityType == "Red Algae", max_dist, 
+                              ifelse(is.na(dist_pred) & CommunityType == "Ascophyllum" &
+                                       SiteCode == "SHIHAR", 0.533, dist_pred))) |> select(-max_dist)
   
-  photo_dist_wide <- photo_dist2 |> select(Site_Code, Loc_Code, Year, Target_Species,
-                                          Spp_Code, avg_cover, elev, dist_pred) |>
-                                   pivot_wider(names_from = Spp_Code,
-                                               values_from = avg_cover, values_fill = 0)
+  photo_dist_wide <- photo_dist2 |> select(UnitCode, SiteCode, Year, CommunityType,
+                                           CoverCode, avg_cover, elev, dist_pred) |>
+                                     pivot_wider(names_from = CoverCode,
+                                                 values_from = avg_cover, values_fill = 0)
 
   # Summarize species PIs, then predict distance from elevations
-  sp_sum <- spdat |> group_by(Site_Code, Loc_Code, Year, Spp_Code, Spp_Name) |>
+  sp_sum <- spdat |> group_by(UnitCode, SiteCode, Year, CoverCode, CoverType) |>
     summarize(elev_min = min(PI_Elevation, na.rm = T),
               elev_max = max(PI_Elevation, na.rm = T),
               elev_med = median(PI_Elevation, na.rm = T),
@@ -341,27 +341,27 @@ photo_dist <- purrr::map_dfr(seq_along(locs1),
               .groups = 'drop')
 
   # Create new datasets for prediction for each stat
-  sp_min <- sp_sum |> select(Site_Code:Spp_Name, elev = elev_min)
-  sp_med <- sp_sum |> select(Site_Code:Spp_Name, elev = elev_med)
-  sp_max <- sp_sum |> select(Site_Code:Spp_Name, elev = elev_max)
-  sp_l25 <- sp_sum |> select(Site_Code:Spp_Name, elev = elev_l25)
-  sp_u75 <- sp_sum |> select(Site_Code:Spp_Name, elev = elev_u75)
+  sp_min <- sp_sum |> select(UnitCode:CoverType, elev = elev_min)
+  sp_med <- sp_sum |> select(UnitCode:CoverType, elev = elev_med)
+  sp_max <- sp_sum |> select(UnitCode:CoverType, elev = elev_max)
+  sp_l25 <- sp_sum |> select(UnitCode:CoverType, elev = elev_l25)
+  sp_u75 <- sp_sum |> select(UnitCode:CoverType, elev = elev_u75)
 
   # Predict distances for each stat based on its elevation
   sp_dist <- purrr::map_dfr(seq_along(locs1), 
      function(loc){
        loccode <- locs1[loc]
-       datsm <- trdat |> filter(Loc_Code == loccode)                  
+       datsm <- trdat |> filter(SiteCode == loccode)                  
        smooth <- loess(dist ~ elev, data = datsm, span = 0.6)
-       spsmooth <- sp_sum |> filter(Loc_Code == loccode) |> select(Site_Code:Spp_Name, elev = elev_med)
+       spsmooth <- sp_sum |> filter(SiteCode == loccode) |> select(UnitCode:CoverType, elev = elev_med)
        cbind(spsmooth, dist_pred = predict(smooth, spsmooth))
   })
 
 ```  
 ```{r raw_photo_dt, echo = F, include = F, eval = run}  
-raw_photo_dt <- datatable(photo1 |> select(Site_Code, Loc_Code, Year, QAQC, Plot_Name, Target_Species, 
-                                           Bolt_UTM_E, Bolt_UTM_N, Bolt_MLLW_Elev, Date_Scored,
-                                           Spp_Code, Spp_Name, Category, Perc_Cover), 
+raw_photo_dt <- datatable(photo1 |> select(UnitCode, SiteCode, Year, QAQC, PlotName, CommunityType, 
+                                           Bolt_UTM_E, Bolt_UTM_N, Bolt_MLLW_Elev, 
+                                           CoverCode, ScientificName, PercentCover), 
                           width = '1200px', 
                           extensions = c("FixedColumns", "Buttons"),
                           options = list(       
@@ -391,8 +391,8 @@ sum_photo_dt <- datatable(photo_sum, width = '1200px',
 ```
 ```{r raw_PIspp_dt, echo = F, include = F, eval = run}
 raw_PIspecies_dt <- 
-  datatable(spdat1 |> select(Site_Code, Loc_Code, Year, QAQC, Plot_Name, Label, 
-                             Spp_Code, Spp_Name, Elevation_MLLW_m, elev_first, elev_last, 
+  datatable(spdat1 |> select(UnitCode, SiteCode, Year, QAQC, PlotName, Label, 
+                             CoverCode, CoverType, Elevation_MLLW_m, elev_first, elev_last, 
                              elev_change,  Distance_m, PI_Distance, PI_Elevation), 
             width = '1200px',
             extensions = c("FixedColumns", "Buttons"),
@@ -426,9 +426,9 @@ sum_PIspecies_dt <-
 ```
 ```{r photo_pispp_tabs, echo = F, include = F, eval = run}
 photocov <- getPhotoCover(park = park, years = years) |> 
-  group_by(Loc_Code, Year, Target_Species) |> 
+  group_by(SiteCode, Year, CommunityType) |> 
   summarize(num_records = n(), .groups = 'drop') |> 
-  pivot_wider(names_from = Target_Species, values_from = num_records, values_fill = 0)
+  pivot_wider(names_from = CommunityType, values_from = num_records, values_fill = 0)
 
 phototab_dt <- datatable(photocov, width = '1200px',
             extensions = c("FixedColumns", "Buttons"),
@@ -443,9 +443,9 @@ phototab_dt <- datatable(photocov, width = '1200px',
                       filter = list(position = c('top'), clear = FALSE))
  
 pispp <- getPISpecies(park = park, years = years) |> 
-  group_by(Loc_Code, Year, Spp_Code) |> 
+  group_by(SiteCode, Year, CoverCode) |> 
   summarize(num_records = n(), .groups = 'drop') |> 
-  pivot_wider(names_from = Spp_Code, values_from = num_records, values_fill = 0)
+  pivot_wider(names_from = CoverCode, values_from = num_records, values_fill = 0)
 
 pispp_dt <- datatable(pispp, width = "1200px",
                       extensions = c("FixedColumns", "Buttons"),
@@ -481,9 +481,9 @@ phototab_dt
 
 ##### Raw Motile Invert Counts
 ```{r motinv_ct_raw, results = 'hide', include = FALSE, eval = run}
-motinv <- getMotileInvertCounts(park = park, location = 'all', years = years) |> 
-  select(Site_Code, Loc_Code, Year, QAQC, Target_Species, Plot_Name, 
-         Spp_Code, Spp_Name, Damage, No.Damage, Subsampled, Bolt_UTM_E, Bolt_UTM_N, Bolt_MLLW_Elev)
+motinv <- getMotileInvertCounts(park = park, site = 'all', years = years) |> 
+  select(UnitCode, SiteCode, Year, QAQC, CommunityType, PlotName, 
+         SpeciesCode, ScientificName, Damage, No.Damage, Subsampled, Bolt_UTM_E, Bolt_UTM_N, Bolt_MLLW_Elev)
 
 motinv_dt <- datatable(motinv, width = '1200px',
                        extensions = c("FixedColumns", "Buttons"),
@@ -500,8 +500,8 @@ motinv_dt <- datatable(motinv, width = '1200px',
               
 ```
 ```{r motinv_ct_sum, results = 'hide', include = FALSE, eval = run}
-motinv_sum <- sumMotileInvertCounts(park = park, location = 'all', years = years) |> 
-  select(Site_Code, Loc_Code, Year, QAQC, Target_Species, Spp_Code, Spp_Name, 
+motinv_sum <- sumMotileInvertCounts(park = park, site = 'all', years = years) |> 
+  select(UnitCode, SiteCode, Year, QAQC, CommunityType, SpeciesCode, ScientificName, 
          count_total:notdamaged_u75)
 
 motinv_sum_dt <- datatable(motinv_sum, width = '1200px',
@@ -537,8 +537,8 @@ suppressWarnings(motinv_sum_dt)
 Raw Motile Invertebrate measurement data
 ```{r motinv_meas, include = F, results = 'hide', eval = run}
 mi_meas <- getMotileInvertMeas(park = park, years = years) |> 
-  select(Site_Code, Loc_Code, Year, QAQC, Target_Species, Plot_Name,
-         Spp_Name, Spp_Code, Measurement)
+  select(UnitCode, SiteCode, Year, QAQC, CommunityType, PlotName,
+         ScientificName, SpeciesCode, Measurement)
 
 mi_meas_dt <- datatable(mi_meas, width = '1200px',
                        extensions = c("FixedColumns", "Buttons"),
@@ -581,9 +581,9 @@ suppressWarnings(mi_meas_sum_dt)
 
 ##### Raw Echinoderm Counts
 ```{r echino_ct_raw, results = 'hide', include = FALSE, eval = run}
-echino <- getEchinoCounts(park = park, location = 'all', years = years) |> 
-  select(Site_Code, Loc_Code, Year, QAQC, Plot_Name, 
-        Target_Species, Spp_Code, Spp_Name, Count)
+echino <- getEchinoCounts(park = park, site = 'all', years = years) |> 
+  select(UnitCode, SiteCode, Year, QAQC, PlotName, 
+         SpeciesCode, ScientificName, Count)
 
 echino_dt <- datatable(echino, width = '1200px',
                        extensions = c("FixedColumns", "Buttons"),
@@ -599,8 +599,8 @@ echino_dt <- datatable(echino, width = '1200px',
               
 ```
 ```{r echino_ct_sum, results = 'hide', include = FALSE, eval = run}
-echino_sum <- sumEchinoCounts(park = park, location = 'all', years = years) |> 
-  select(Site_Code, Loc_Code, Year, QAQC, Spp_Code, Spp_Name, 
+echino_sum <- sumEchinoCounts(park = park, site = 'all', years = years) |> 
+  select(UnitCode, SiteCode, Year, QAQC, SpeciesCode, ScientificName, 
          count_total:count_u75)
 
 echino_sum_dt <- datatable(echino_sum, width = '1200px',
@@ -633,8 +633,8 @@ suppressWarnings(echino_sum_dt)
 Raw Echinoderm measurement data
 ```{r echino_meas, include = F, results = 'hide', eval = run}
 ec_meas <- getEchinoMeas(park = park, years = years) |> 
-  select(Site_Code, Loc_Code, Year, QAQC, Target_Species, Plot_Name,
-         Spp_Name, Spp_Code, Measurement)
+  select(UnitCode, SiteCode, Year, QAQC, PlotName,
+         ScientificName, SpeciesCode, Measurement)
 
 ec_meas_dt <- datatable(ec_meas, width = '1200px',
                        extensions = c("FixedColumns", "Buttons"),
