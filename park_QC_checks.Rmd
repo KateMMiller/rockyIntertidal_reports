@@ -115,11 +115,19 @@ check_null(miss_bolt_elev_dist)
 
 check_null(later_bolt_dist_0)
 
+check_null(nonchron_bolt_dist)
+
+check_null(missing_bolts)
+
+check_null(short_trans)
+
+check_null(long_trans)
+
 check_null(bolt_check_tbl)
 ```
 
-#### Transect Contour Plots {.tabset}
-```{r warning = FALSE, message = FALSE, out.width='100%', out.height = '95%', results = 'asis'}
+```{r warning = FALSE, message = FALSE, out.width='100%', out.height = '95%', results = 'asis', eval = F}
+cat("#### Transect Contour Plots {.tabset}")
 for(i in seq_along(locs$SiteCode)){
    loc <- locs$SiteCode[[i]]
    cat("##### ", loc, "\n")
@@ -128,8 +136,9 @@ for(i in seq_along(locs$SiteCode)){
 }  
 ```
 
-#### Transect Species Plots {.tabset}
-```{r warning = FALSE, message = FALSE, fig.height = 12, fig.width = 10,  results = 'asis'}
+
+```{r warning = FALSE, message = FALSE, fig.height = 12, fig.width = 10,  results = 'asis', eval = F}
+cat("#### Transect Species Plots {.tabset}")
 for(i in seq_along(locs$SiteCode)){
   loc <- locs$SiteCode[[i]]
   cat("##### ", loc, "\n")
