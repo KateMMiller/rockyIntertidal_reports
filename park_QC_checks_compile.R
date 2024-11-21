@@ -15,15 +15,6 @@
 # park = "ACAD"
 
 
-#+++++++++++++++++++++ Checks to add +++++++++++++++++++++++
-#+ Find NAs in photoplot motile inverts
-#+ Find NAs in motile invert measurements (SHIHAR-2021-Barnacle-TECTES = NA)
-#+ Motile invert measurements > 99.9.
-#+ Show photoplot cover by site/year to see where plots haven't been scored yet.
-#+ Show echino counts that read in as NA
-#+ EchinoMeasures have a lot of 0s in 2019, but nowhere else. Show table of values
-
-
 #----- Functions -----
 QC_check <- function(df, tab, check){
   result <- data.frame("Data" = tab, "Description" = check, "Num_Records" = nrow(df))
@@ -40,12 +31,28 @@ make_kable <- function(df, cap){
   } else NULL
 }
 
+make_kable2 <- function(df, cap){
+  QC_table <- if(nrow(df) > 0){
+    kable(df, format = 'html', align = 'c', caption = cap)  |>
+      kable_styling(fixed_thead = TRUE, bootstrap_options = c('condensed'),
+                    full_width = TRUE, position = 'left', font_size = 12) |>
+      row_spec(0, extra_css = "border-top: 1px solid #000000; border-bottom: 1px solid #000000;") |>
+      collapse_rows(1:2, valign = 'top') |>
+      row_spec(nrow(df), extra_css = 'border-bottom: 1px solid #000000;')
+  } else NULL
+}
+
 # Determine whether to include/drop tab in rmd output
 tab_include <- function(df){ifelse(nrow(df) > 0, TRUE, FALSE)}
 
 # Determine if table exists or is null used in eval for rmd
 check_null <- function(table){
   if(!is.null(table)){table}
+}
+
+check_null_print <- function(table, tab_level = 4, tab_title){
+  if(!is.null(table)){cat(paste0(rep("#", tab_level), collapse = ""), " ", tab_title, " {.tabset} ", "\n\n")}
+  check_null(table)
 }
 
 #----- Setup ------
@@ -74,7 +81,6 @@ notes_long <- notes_events |> pivot_longer(Notes_Conditions:Notes_Additional_Spp
 # Add other notes if they're stored in other places here
 notes_comb <- rbind(notes_long, notes_bolts) |> arrange(SiteCode, Year, Note_Type)
 
-
 visit_table <- kable(notes_comb, format = 'html', align = c(rep('c', 2), 'l', 'l'),
                      col.names = c("Location", "Year", "Type", "Note")) |>
                kable_styling(fixed_thead = TRUE, bootstrap_options = 'condensed', full_width = TRUE,
@@ -89,30 +95,118 @@ include_visit_table <- tab_include(notes_comb)
 # Check for bolts with blank Elevation or Distance
 bolt_dist_na <- do.call(getPIBoltDistance, args = c(arglist, dropNA = F)) |>
   #getPIBoltDistance(park = park, years = year) |>
-  filter(is.na(Elevation_MLLW_m) | is.na(Distance_m)) |>
-  select(SiteCode, Year, Label, Elevation_MLLW_m, Distance_m)
+  filter(is.na(Distance_m)) |>
+  select(SiteCode, Year, Label, Distance_m)
 
-QC_table <- QC_check(bolt_dist_na, "PI Transect", "Bolts missing elevation or distance")
+QC_table <- QC_check(bolt_dist_na, "PI Transect", "Bolts missing distance")
 
 miss_bolt_elev_dist <- kable(bolt_dist_na, format = 'html', align = 'c',
-                             caption = "Bolts missing an elevation or distance measurement")  |>
+                             caption = "Bolts missing a distance measurement")  |>
   kable_styling(fixed_thead = TRUE, bootstrap_options = 'condensed',
                 full_width = TRUE, position = 'left', font_size = 12) |>
   row_spec(0, extra_css = "border-top: 1px solid #000000; border-bottom: 1px solid #000000;") |>
-  column_spec(4, background = ifelse(is.na(bolt_dist_na$Elevation_MLLW_m), "#F2F2A0", "#ffffff")) |>
-  column_spec(5, background = ifelse(is.na(bolt_dist_na$Distance_m), "#F2F2A0", "#ffffff")) |>
+  column_spec(4, background = ifelse(is.na(bolt_dist_na$Distance_m), "#F2F2A0", "#ffffff")) |>
   collapse_rows(1, valign = 'top') |>
   row_spec(nrow(bolt_dist_na), extra_css = 'border-bottom: 1px solid #000000;')
+
 
 # Check for bolts not labeled 1 with Distance of 0
 bolt_dist_0 <- do.call(getPIBoltDistance, args = c(arglist, dropNA = F)) |>
   filter(!grepl("01", Label) & Distance_m == 0) |>
-  select(SiteCode, Year, Label, Elevation_MLLW_m, Distance_m)
+  select(SiteCode, Year, Label, Distance_m)
 
 QC_table <- rbind(QC_table,
                   QC_check(bolt_dist_0, "PI Transect", "Bolts with distance of 0 after first transect bolt"))
 
 later_bolt_dist_0 <- make_kable(bolt_dist_0, "Bolts with distance of 0 after the first transect bolt.")
+
+# Check for bolts with distance measurements that aren't chronological
+bolt_chron <- do.call(getPIBoltDistance, args = c(arglist, dropNA = F)) |>
+  select(SiteCode, Year, PlotName, Label, Distance_m) |>
+  group_by(SiteCode, Year, PlotName) |>
+  arrange(SiteCode, Year, Label) |>
+  mutate(lead_dist = dplyr::lead(Distance_m, 1),
+         not_chron = ifelse(lead_dist - Distance_m < 0, "X", NA_character_)) |>
+  select(SiteCode, Year, PlotName, Label, Distance_m, not_chron)
+
+# Take 2 records before/after non-chronological records
+non_chron <- which(bolt_chron$not_chron == "X")
+non_chron_prev2 <- non_chron - 1
+non_chron_foll2 <- non_chron + 1
+
+bolt_nonchron <- bolt_chron[sort(c(non_chron_prev2, non_chron, non_chron_foll2)),]
+
+QC_table <- rbind(QC_table,
+                  QC_check(bolt_nonchron, "PI Transect", "Bolts with distances out of chronological order."))
+
+nonchron_bolt_dist <- kable(bolt_nonchron, format = 'html', align = 'c',
+                            caption = "Bolts with distances out of chronological order, showing previous and following bolt for comparison.",
+                        col.names = c("SiteCode", "Year", "PlotName", "Label", "Distance (m)", "Out-of-order")) |>
+  kable_styling(fixed_thead = TRUE, bootstrap_options = c("condensed"),
+                full_width = TRUE, position = 'left', font_size = 12) |>
+  row_spec(0, extra_css =
+             "border-top: 1px solid #000000; border-bottom: 1px solid #000000;") |>
+  column_spec(2:ncol(bolt_nonchron),
+              background = ifelse(!(is.na(bolt_nonchron$not_chron)), "#F2F2A0", "#ffffff")) |>
+  collapse_rows(1:2, valign = 'top') |>
+  row_spec(nrow(QC_table), extra_css = 'border-bottom: 1px solid #000000;')
+
+# Check that all bolts have a distance, using list of unique bolt labels from all years
+bolt_data <- do.call(getPIBoltDistance, args = c(arglist, dropNA = F)) |>
+  select(SiteCode, Year, PlotName, Label) |> mutate(Bolt_Check = 1)
+
+bolt_missed1 <- bolt_data |> pivot_wider(names_from = Year, values_from = Bolt_Check, values_fill = 0) |>
+  pivot_longer(cols = starts_with("20"), names_to = "Year", values_to = "recorded") |>
+  filter(recorded == 0) |> mutate(Year = as.numeric(Year))
+
+# Drop visits that didn't occur
+bolt_visits <- bolt_data |> select(SiteCode, Year) |> unique()
+
+bolt_missed <- left_join(bolt_visits, bolt_missed1, by = c("SiteCode", "Year")) |>
+  filter(!is.na(Label)) |> select(-recorded) |>
+  arrange(SiteCode, Year, Label)
+
+QC_table <- rbind(QC_table,
+                  QC_check(bolt_missed, "PI Transect", "Bolts that were missed in a given visit."))
+
+missing_bolts <- make_kable2(bolt_missed, "Bolts that were missed in a given visit.")
+
+# Check transect lengths, look for lengths <> 95% of lengths recorded
+trans_dist <- do.call(getPIBoltDistance, args = c(arglist, dropNA = F)) |>
+  group_by(SiteCode, Year, PlotName) |>
+  summarize(trans_dist = max(Distance_m, na.rm = T), .groups = 'drop')
+
+trans_dist95 <- trans_dist |> group_by(SiteCode, PlotName) |>
+  summarize(upper95 = quantile(trans_dist, 0.975),
+            lower95 = quantile(trans_dist, 0.025),
+            .groups = 'drop')
+
+trans_check <- left_join(trans_dist, trans_dist95, by = c("SiteCode", "PlotName")) |>
+  mutate(short_transect = ifelse(trans_dist < lower95, 1, 0),
+         long_transect = ifelse(trans_dist > upper95, 1, 0))
+
+trans_short <- trans_check |> filter(short_transect == 1) |> select(SiteCode, Year, PlotName, trans_dist, upper95, lower95)
+QC_table <- rbind(QC_table,
+                  QC_check(trans_short, "PI Transect", "Transects with lengths shorter than 95% of all other visits."))
+
+short_trans <- make_kable2(trans_short, "Transects with lengths shorter than 95% of all other visits.")
+
+trans_long <- trans_check |> filter(long_transect == 1) |> select(SiteCode, Year, PlotName, trans_dist, upper95, lower95)
+QC_table <- rbind(QC_table,
+                  QC_check(trans_long, "PI Transect", "Transects with lengths longer than 95% of all other visits."))
+
+long_trans <- make_kable2(trans_long, "Transects with lengths longer than 95% of all other visits.")
+
+# Check that all transects were sampled in a given year
+bolt_trans <- do.call(getPIBoltDistance, args = c(arglist, dropNA = F)) |>
+  select(SiteCode, Year, PlotName) |> mutate(Sampled = 1) |> unique() |>
+  pivot_wider(names_from = PlotName, values_from = Sampled) |>
+  mutate(Num_Transects = T1 + T2 + T3) |> filter(Num_Transects < 3)
+
+QC_table <- rbind(QC_table,
+                  QC_check(bolt_trans, "PI Transect", "Sites with fewer than 3 transects sampled in a given visit."))
+
+missing_trans <- make_kable2(bolt_trans, "Sites with fewer than 3 transects sampled in a given visit.")
 
 # Check for impossible elevation and distance combinations between bolts (forces NANs in arcsin calc)
 spp_pi <- do.call(sumPISpecies, arglist) |>
@@ -124,11 +218,51 @@ QC_table <- rbind(QC_table,
 
 bolt_check_tbl <- make_kable(bolt_checks, "Impossible bolt elevation and distance combinations.")
 
+# Check for species higher or lower than observed range for all previous visits
+# Doing this for all possible visits returned 850 records, which just isn't helpful
+spp_elev <- do.call(sumPISpecies, args = c(arglist, drop_missing = T)) |>
+  select(SiteCode, Year, PlotName, CoverType, CoverCode, PI_Elevation) |>
+  filter(!is.na(PI_Elevation)) |>
+  mutate(PI_Elevation = as.numeric(format(ceiling(PI_Elevation*100)/100, nsmall = 2))) # So completely drops numbers after 2 decimals
+
+spp_elev_curr <- spp_elev |> filter(Year == year_curr)
+
+spp_elev_sum <- spp_elev |> filter(!Year %in% year_curr) |>
+  group_by(SiteCode, PlotName, CoverType, CoverCode) |>
+  summarize(max_elev = round(max(PI_Elevation, na.rm = T), 2),
+            min_elev = round(min(PI_Elevation, na.rm = T), 2),
+            .groups = 'drop')
+
+spp_elev_check <- left_join(spp_elev_curr, spp_elev_sum, by = c("SiteCode", "PlotName", "CoverType", "CoverCode")) |>
+  mutate(low_elev = ifelse(PI_Elevation < min_elev, 1, 0), # to ignore rounding errors
+         high_elev = ifelse(PI_Elevation > max_elev, 1, 0), # to ignore rounding errors
+         outside_range = low_elev + high_elev) |>
+  filter(outside_range > 0)
+
+spp_elev_high <- spp_elev_check |> filter(high_elev == 1) |>
+  select(SiteCode, Year, PlotName, CoverType, CoverCode, PI_Elevation, max_elev)
+spp_elev_low <- spp_elev_check |> filter(low_elev == 1) |>
+  select(SiteCode, Year, PlotName, CoverType, CoverCode, PI_Elevation, min_elev)
+
+QC_table <- rbind(QC_table,
+                  QC_check(spp_elev_high, "PI Transect",
+                           paste0("Species elevations in ", year_curr, " higher than elevations recorded in previous visits.")))
+
+QC_table <- rbind(QC_table,
+                  QC_check(spp_elev_low, "PI Transect",
+                           paste0("Species elevations in ", year_curr, " lower than elevations recorded in previous visits.")))
+
+spp_high_elev <- make_kable(spp_elev_high,
+                            paste0("Species elevations in ", year_curr, " higher than elevations recorded in previous visits."))
+
+spp_low_elev <- make_kable(spp_elev_low,
+                           paste0("Species elevations in ", year_curr, " lower than elevations recorded in previous visits."))
+
+
 # Check if Point Intercept tab returned any records to determine whether to plot that tab in report
 pit_check <- QC_table |> filter(Data %in% "PI Transect" & Num_Records > 0)
 
 pit_include <- tab_include(pit_check)
-
 
 #---- Photoplot substrate checks ----
 pctcov <- do.call(getPhotoCover, args = c(arglist, dropNA = F)) |>
@@ -137,32 +271,8 @@ pctcov <- do.call(getPhotoCover, args = c(arglist, dropNA = F)) |>
   select(sampID, UnitCode, SiteCode, StartDate, Year, QAQC, PlotName, CommunityType,
          CoverCode, CoverType, PercentCover, Notes)
 
-table(pctcov$sampID, pctcov$CommunityType)
-table(pctcov$SiteCode, pctcov$Year)
-
-# All of 2019 data are missing in the db version I have. Need to make a skeleton df of 2018 to show blanks.
-# The if statement below only runs if 2019 is missing from the raw dataset
-if(!2019 %in% unique(pctcov$Year)){
-  table(pctcov$SiteCode, pctcov$Year)
-  cov19 <- pctcov |> filter(Year == 2018) |> filter(QAQC == FALSE)
-  cov19$StartDate <- NA
-  cov19$PercentCover <- NA_real_
-  cov19$sampID <- gsub("18", "19", cov19$sampID)
-  cov19$Year <- 2019
-  cov19 <- unique(cov19)
-  pctcov <- rbind(pctcov, cov19)
-}
-
-if(!2021 %in% unique(pctcov$Year)){
-  table(pctcov$SiteCode, pctcov$Year)
-  cov21 <- pctcov |> filter(Year == 2018) |> filter(QAQC == FALSE)
-  cov21$StartDate <- NA
-  cov21$PercentCover <- NA_real_
-  cov21$sampID <- gsub("18", "21", cov21$sampID)
-  cov21$Year <- 2021
-  cov21 <- unique(cov21)
-  pctcov <- rbind(pctcov, cov21)
-}
+#table(pctcov$sampID, pctcov$CommunityType)
+#table(pctcov$SiteCode, pctcov$Year)
 
 # location/plot name combinations found in data to check for missing
 sample_combos <- pctcov |> select(UnitCode, SiteCode, CommunityType, PlotName) |> unique() |>
@@ -192,7 +302,6 @@ QC_table <- rbind(QC_table,
 
 photoplot_tbl <- make_kable(plot_check, "Photoplots either missing scores or with duplicate scores. Will only return missing target species plots that have been sampled at least one year in a given location.")
 
-
 # Find year/target species combinations that haven't been scored yet
 plot_check2 <- pctcov |> group_by(sampID, SiteCode, Year, QAQC, PlotName, CommunityType) |>
   summarize(num_pct_cov_NAs = sum(is.na(PercentCover)),
@@ -202,7 +311,6 @@ QC_table <- rbind(QC_table,
                   QC_check(plot_check2, "Photoplot substrate", "Photoplots that haven't been scored for the entire year."))
 
 photoplot2_tbl <- make_kable(plot_check2, "Photoplots that haven't been scored for the entire year.")
-
 
 # Check that each site has the same species list, and species not detected have a 0 for PercentCover.
 spp_combos <- pctcov |> select(UnitCode, SiteCode, CoverCode, PlotName) |> unique() |>
@@ -236,15 +344,36 @@ pctcov_sum <- pctcov |> group_by(sampID, SiteCode, Year, QAQC, PlotName, Communi
   summarize(tot_pctcov = sum(PercentCover, na.rm = T), .groups = 'drop') |> filter(tot_pctcov > 100)
 
 QC_table <- rbind(QC_table, QC_check(pctcov_sum, "Photoplot substrate",
-                                     "Photoplots that sum to more than 100% cover. If the total percent cover sums to 200, there are likely duplicate scores for that location/photoplot."))
+                                     "Photoplots that sum to more than 100 cover. If the total percent cover sums to 200, there are likely duplicate scores for that location/photoplot."))
 
-pctcov_sum_tbl <- make_kable(spp_check, "Photoplots that sum to more than 100% cover. If the total percent cover sums to 200, there are likely duplicate scores for that location/photoplot.")
+pctcov_sum_tbl <- make_kable(pctcov_sum, "Photoplots that sum to more than 100 cover. If the total percent cover sums to 200, there are likely duplicate scores for that location/photoplot.")
+
+# Check for covers that sum to <100%
+cov_sum <- pctcov |> group_by(SiteCode, Year, PlotName, CommunityType, QAQC) |>
+  summarize(total_cover = sum(PercentCover), .groups = 'drop') |>
+  filter(total_cover < 100) |> filter(total_cover > 0)
+
+QC_table <- rbind(QC_table,
+                  QC_check(cov_sum, "Photoplot substrate", "Total photoplot cover < 100."))
+
+covsum_tbl <- make_kable(cov_sum, "Total photoplot cover < 100.")
+
+# Check for covers that sum to 0
+cov_sum0 <- pctcov |> group_by(SiteCode, Year, PlotName, CommunityType, QAQC) |>
+  summarize(total_cover = sum(PercentCover), .groups = 'drop') |>
+  filter(total_cover == 0)
+
+QC_table <- rbind(QC_table,
+                  QC_check(cov_sum0, "Photoplot substrate", "Total photoplot cover = 0."))
+
+covsum0_tbl <- make_kable(cov_sum0, "Total photoplot cover = 0.")
 
 # Check if photoplot tab returned any records to determine whether to plot that tab in report
 photoplot_check <- QC_table |> filter(Data %in% "Photoplot substrate" & Num_Records > 0)
 
 photoplot_include <- tab_include(photoplot_check)
 
+#++++++++ ENDED HERE ++++++++++
 #---- Photoplot Motile Inverts -----
 micnt <- do.call(getMotileInvertCounts, arglist) |>
   select(UnitCode, SiteCode, Year, QAQC, CommunityType,

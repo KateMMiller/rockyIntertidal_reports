@@ -27,12 +27,12 @@ library(htmltools) # for tagList
 importData()
 park = params$park
 year_curr = params$year_curr
-year = if(params$all_years == TRUE){2013:year_curr} else {year_curr}
+year = 2013:year_curr
 
-# year = 2013:2021
+# year = 2013:2024
 # park = "ACAD"
-# year_curr = 2021
-
+# year_curr = 2024
+# 
 arglist <- list(park = park, years = year)
 
 locs <- do.call(getPIBoltDistance, arglist) |>
@@ -46,7 +46,7 @@ Rocky intertidal Quality Control checking for `r params$park` and `r paste(year,
 source('park_QC_checks_compile.R')
 ```
 
-```{r, warning = FALSE, message = FALSE, results = 'hide', include = FALSE}
+```{r, warning = FALSE, message = FALSE, results = 'hide', include = FALSE, eval = F}
 #---- Plotting bolt elevation by distance -----
 trans_contour_plots <- 
   purrr::map(locs$SiteCode, 
@@ -91,8 +91,10 @@ echino_meas_plots <- purrr::map(locs$SiteCode,
 
 ```
 
-
 ### QC Checks {.tabset}
+
+<hr>
+
 #### Summary {.tabset}
 ```{r}
 QC_check_table
@@ -106,77 +108,53 @@ if(include_visit_table == TRUE){
 ```
 
 ### Point Intercept Transects {.tabset}
+
+<hr>
+
 ```{r eval = pit_include, results = 'asis'}
-cat("#### QC Checks {.tabset}", "\n")
+check_null_print(miss_bolt_elev_dist, 4, "Missing distance")
+  
+check_null_print(later_bolt_dist_0, 4, "0 after first bolt")
+
+check_null_print(nonchron_bolt_dist, 4, "Bolts out of order")
+
+check_null_print(missing_bolts, 4, "Missed bolts")
+
+check_null_print(short_trans, 4, "Short transects")
+
+check_null_print(long_trans, 4, "Long transects")
+
+check_null_print(missing_trans, 4, "Missed transects")
+
+check_null_print(bolt_check_tbl, 4, "Impossible elev. X dist.")
+
+check_null_print(spp_high_elev, 4, "Spp. elev. above hist. range")
+
+check_null_print(spp_low_elev, 4, "Spp. elev. below hist. range")
 ```
 
-```{r eval = pit_include}
-check_null(miss_bolt_elev_dist)
-
-check_null(later_bolt_dist_0)
-
-check_null(nonchron_bolt_dist)
-
-check_null(missing_bolts)
-
-check_null(short_trans)
-
-check_null(long_trans)
-
-check_null(bolt_check_tbl)
-```
-
-```{r warning = FALSE, message = FALSE, out.width='100%', out.height = '95%', results = 'asis', eval = F}
-cat("#### Transect Contour Plots {.tabset}")
-for(i in seq_along(locs$SiteCode)){
-   loc <- locs$SiteCode[[i]]
-   cat("##### ", loc, "\n")
-   print(trans_contour_plots[[loc]])
-   cat("\n\n")
-}  
-```
-
-
-```{r warning = FALSE, message = FALSE, fig.height = 12, fig.width = 10,  results = 'asis', eval = F}
-cat("#### Transect Species Plots {.tabset}")
-for(i in seq_along(locs$SiteCode)){
-  loc <- locs$SiteCode[[i]]
-  cat("##### ", loc, "\n")
-  cat("Point Intercept species by elevation. Points are median elevation across 3 transects. 
-       Wider lines are the middle 25% and 75% quartiles. Thin lines are minimum and maximum elevations 
-       recorded for a given species.", "\n")
-  print(trans_species_plots[[loc]])
-  cat("\n\n") 
-}
-```
 
 ### Photoplots {.tabset}
+
+---
+
 ```{r include = F, results = 'hide'}
 # Nesting substrate and motile inverts within photoplots
 photoplot_eval <- ifelse(photoplot_include == TRUE | photoplot_mi_include == TRUE, TRUE, FALSE)
 ```
 
-```{r eval = photoplot_eval, results = 'asis'}
-cat("#### QC Checks {.tabset}", "\n\n")
-```
-
 ```{r eval = photoplot_include, results = 'asis'}
-cat("##### Substrate {.tabset}", "\n\n")
-cat("<details open><summary class = 'drop'>", "<h3>Missing or duplicated photoplot scores</h3>", "</summary>")
-check_null(photoplot_tbl)
-cat("</details>")
+check_null_print(photoplot_tbl, 4, "Missing or duplicate scores")
 
-cat("<details open><summary class = 'drop'>", "<h3>Years missing photoplot scores</h3>", "</summary>")
-check_null(photoplot2_tbl)
-cat("</details>")
+check_null_print(photoplot2_tbl, 4, "Years missing scores")
 
-cat("<details open><summary class = 'drop'>", "<h3>Missing or duplicated photoplot % cover for species recorded perviously</h3>", "</summary>")
-check_null(spp_plot_tbl)
-cat("</details>")
+check_null_print(covsum_tbl, 4, "Total cover over 100")
 
-cat("<details open><summary class = 'drop'>", "<h3>Total % Cover sums to > 100%</h3>", "</summary>")
-check_null(pctcov_sum_tbl)
-cat("</details>")
+check_null_print(pctcov_sum_tbl, 4, "Total cover under 100")
+
+check_null_print(covsum0_tbl, 4, "Total cover sums to 0")
+
+check_null_print(spp_plot_tbl, 4, "Missing or dup. species cover")
 
 ```
 
@@ -202,8 +180,8 @@ cat("</details>")
 
 ```
 
-#### Substrate Species Plots {.tabset}
-```{r warning = FALSE, message = FALSE, fig.height = 10, fig.width = 12,  results = 'asis'}
+```{r warning = FALSE, message = FALSE, fig.height = 10, fig.width = 12,  results = 'asis', eval = F}
+cat("#### Substrate Species Plots {.tabset}", "\n\n")
 for(i in seq_along(locs$SiteCode)){
   loc <- locs$SiteCode[[i]]
   cat("##### ", loc, "\n")
@@ -215,13 +193,13 @@ for(i in seq_along(locs$SiteCode)){
 }
 ```
 
-```{r include = F}
+```{r include = F, eval=F}
 htmltools::tagList(photo_species_plots)
 # note that this has to be here for the previous code to knit, even though results aren't included in report.
 ```
 
 #### Motile Invert. Counts {.tabset}
-```{r warning = FALSE, message = FALSE, fig.height = 10, fig.width = 12,  results = 'asis'}
+```{r warning = FALSE, message = FALSE, fig.height = 10, fig.width = 12,  results = 'asis', eval = F}
 for(i in seq_along(locs$SiteCode)){
   loc <- locs$SiteCode[[i]]
   cat("##### ", loc, "\n")
@@ -232,13 +210,13 @@ for(i in seq_along(locs$SiteCode)){
 }
 ```
 
-```{r include = F}
+```{r include = F, eval=F}
 htmltools::tagList(motinv_species_plots)
 # note that this has to be here for the previous code to knit, even though results aren't included in report.
 ```
 
 #### Motile Invert. Measurements {.tabset}
-```{r warning = FALSE, message = FALSE, fig.height = 10, fig.width = 12,  results = 'asis'}
+```{r warning = FALSE, message = FALSE, fig.height = 10, fig.width = 12,  results = 'asis', eval = F}
 for(i in seq_along(locs$SiteCode)){
   loc <- locs$SiteCode[[i]]
   cat("##### ", loc, "\n")
@@ -271,7 +249,7 @@ cat("</details>")
 ```
 
 #### Echinoderm Counts {.tabset}
-```{r warning = FALSE, message = FALSE, fig.height = 10, fig.width = 12,  results = 'asis'}
+```{r warning = FALSE, message = FALSE, fig.height = 10, fig.width = 12,  results = 'asis', eval = F}
 for(i in seq_along(locs$SiteCode)){
   loc <- locs$SiteCode[[i]]
   cat("##### ", loc, "\n")
@@ -282,13 +260,13 @@ for(i in seq_along(locs$SiteCode)){
 }
 ```
 
-```{r include = F}
+```{r include = F, eval=F}
 htmltools::tagList(echino_cnt_plots)
 # note that this has to be here for the previous code to knit, even though results aren't included in report.
 ```
 
 #### Echinoderm Measurements {.tabset}
-```{r warning = FALSE, message = FALSE, fig.height = 10, fig.width = 12,  results = 'asis'}
+```{r warning = FALSE, message = FALSE, fig.height = 10, fig.width = 12,  results = 'asis', eval = F}
 for(i in seq_along(locs$SiteCode)){
   loc <- locs$SiteCode[[i]]
   cat("##### ", loc, "\n")
