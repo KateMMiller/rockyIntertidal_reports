@@ -331,6 +331,7 @@ sample_combos <- pctcov |> select(UnitCode, SiteCode, CommunityType, PlotName) |
             .groups = 'drop')
 
 # Check for photoplots that have duplicate data
+
 plot_check1 <- as.data.frame(table(pctcov$sampID, pctcov$CommunityType)) |>
   filter(Freq > 130) |> mutate(sampID = as.character(Var1), # 5 plots * 26 species = 130
                                CommunityType = as.character(Var2),
@@ -338,6 +339,10 @@ plot_check1 <- as.data.frame(table(pctcov$sampID, pctcov$CommunityType)) |>
   select(sampID, CommunityType, numplots) |>
   mutate(SiteCode = substr(sampID, 6, 11),
          Year = as.numeric(substr(sampID, 13, 16)))
+
+check <- pctcov |> filter(sampID == "ACAD_SCHPOI_2023") |> filter(CommunityType == "Barnacle")
+
+table(check$CoverCode, check$PlotName)
 
 plot_check <- left_join(sample_combos |> select(-num_plots),
                         plot_check1,
@@ -670,6 +675,60 @@ QC_table <- rbind(QC_table, QC_check(ecmeas_0s, "Echinoderms",
                                      "Echinoderm sites and years that have measurements of 0."))
 
 ecmeas_0_tbl <- make_kable(ecmeas_0s, "Echinoderm sites and years that have measurements of 0.")
+
+
+# Check that counts match number of measurements up to 10 per species
+echinocnt <- do.call(getEchinoCounts, arglist) |>
+  select(SiteCode, Year, QAQC, StartDate, PlotName,
+         SpeciesCode, ScientificName, Count)
+
+echinomeas <- do.call(getEchinoMeas, arglist) |>
+  select(UnitCode, SiteCode, Year, StartDate, PlotName, SpeciesCode,
+         ScientificName, CommonName, Measurement)
+
+echinomeas_sum <- echinomeas |>
+  group_by(SiteCode, Year, PlotName, StartDate, SpeciesCode,
+           ScientificName, CommonName) |>
+  summarize(num_meas = sum(!is.na(Measurement)), .groups = 'drop')
+
+echino_comb <- full_join(echinocnt, echinomeas_sum,
+                     by = c("SiteCode", "Year", "PlotName", "StartDate", "SpeciesCode",
+                            "ScientificName")) |>
+  mutate(num_meas = ifelse(is.na(num_meas), 0, num_meas),
+         num_count = ifelse(is.na(Count), 0, Count),
+         incorr_count = ifelse(Count == num_meas | Count >10 & num_meas == 10, 0, 1)) |>
+  filter(incorr_count == 1)
+
+echino_comb
+
+# Check for number of measurements > 10 for a given species and photoplot
+echino_comb11 <- echino_comb |> filter(num_meas > 10) |> select(-incorr_count)
+
+QC_table <- rbind(QC_table, QC_check(echino_comb11, "Echinoderms",
+                                     "Echinoderm species with more than 10 measurments."))
+
+echinomeas11_tbl <- make_kable(echino_comb11, "Echinoderm species with more than 10 measurments.")
+
+# Check for number of measurements < number of counts
+echino_meas_miss <- echino_comb |>
+  filter(incorr_count == 1) |>
+  filter(num_meas < num_count) |>
+  filter(num_meas <= 10) |> select(-incorr_count)
+
+QC_table <- rbind(QC_table, QC_check(echino_meas_miss, "Echinoderms",
+                                     "Echinoderm species with fewer measurements than counts (under 10)."))
+
+echino_meas_miss_tbl <- make_kable2(echino_meas_miss, "Echinoderm species with fewer measurements than counts (under 10).")
+
+# Check for number of counts < number of measurements
+echino_cnt_echinoss <- echino_comb |> filter(!SpeciesCode %in% c("HEechinoSAN", "CARMAE")) |>
+  filter(incorr_count == 1) |>
+  filter(num_meas > num_count) |> select(-incorr_count)
+
+QC_table <- rbind(QC_table, QC_check(echino_cnt_echinoss, "Photoplot Motile Inverts",
+                                     "Motile Invert species with fewer counts than measurements."))
+
+echino_cnt_echinoss_tbl <- make_kable2(echino_cnt_echinoss, "Motile Invert species with fewer counts than measurements.")
 
 
 # Check if photoplot tab returned any records to determine whether to plot that tab in report

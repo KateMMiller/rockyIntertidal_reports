@@ -32,7 +32,7 @@ year = 2013:year_curr
 # year = 2013:2024
 # park = "ACAD"
 # year_curr = 2024
-# 
+
 arglist <- list(park = park, years = year)
 
 locs <- do.call(getPIBoltDistance, arglist) |>
@@ -193,22 +193,20 @@ check_null_print(mi_cnt_miss_tbl, 4, "Fewer counts than meas.")
 
 ### Echinoderms {.tabset}
 ```{r eval = echino_include, results = 'asis'}
-cat("#### QC Checks {.tabset}", "\n\n")
-cat("<details open><summary class = 'drop'>", "<h3>Echinoderm Counts</h3>", "</summary>")
-check_null(eccnt_nas_tbl)
+check_null_print(eccnt_nas_tbl, 4, "Counts with NAs")
 
-check_null(eccnt_99_tbl)
+check_null_print(eccnt_99_tbl, 4, "Counts over 99pct")
 
-cat("<details open><summary class = 'drop'>", "<h3>Echinoderm Measurements</h3>", "</summary>")
-check_null(ecmeas_nas_tbl)
+check_null_print(ecmeas_nas_tbl, 4, "Meas. with NAs")
 
-check_null(ecmeas_99.9_tbl)
+check_null_print(ecmeas_99.9_tbl, 4, "Meas. over 99.9cm")
 
-check_null(ecmeas_99_tbl)
+check_null_print(ecmeas_99_tbl, 4, "Meas. over 99pct")
 
-check_null(ecmeas_0_tbl)
+check_null_print(ecmeas_0_tbl, 4, "Meas. of 0")
 
-cat("</details>")
+check_null_print(echinomeas11_tbl, 4, "Meas. counts over 10")
+
 
 ```
 
