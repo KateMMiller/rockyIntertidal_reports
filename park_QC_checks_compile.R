@@ -22,7 +22,7 @@ QC_check <- function(df, tab, check){
 
 make_kable <- function(df, cap){
   QC_table <- if(nrow(df) > 0){
-    kable(df, format = 'html', align = 'c', caption = cap)  |>
+    kable(df, format = 'html', align = 'c', caption = cap, row.names = F)  |>
       kable_styling(fixed_thead = TRUE, bootstrap_options = c('condensed'),
                     full_width = TRUE, position = 'left', font_size = 12) |>
       row_spec(0, extra_css = "border-top: 1px solid #000000; border-bottom: 1px solid #000000;") |>
@@ -33,7 +33,7 @@ make_kable <- function(df, cap){
 
 make_kable2 <- function(df, cap){
   QC_table <- if(nrow(df) > 0){
-    kable(df, format = 'html', align = 'c', caption = cap)  |>
+    kable(df, format = 'html', align = 'c', caption = cap, row.names = F)  |>
       kable_styling(fixed_thead = TRUE, bootstrap_options = c('condensed'),
                     full_width = TRUE, position = 'left', font_size = 12) |>
       row_spec(0, extra_css = "border-top: 1px solid #000000; border-bottom: 1px solid #000000;") |>
@@ -96,7 +96,8 @@ include_visit_table <- tab_include(notes_comb)
 bolt_dist_na <- do.call(getPIBoltDistance, args = c(arglist, dropNA = F)) |>
   #getPIBoltDistance(park = park, years = year) |>
   filter(is.na(Distance_m)) |>
-  select(SiteCode, Year, Label, Distance_m)
+  select(SiteCode, Year, Label, Distance_m) |>
+  arrange(SiteCode, Year, Label)
 
 QC_table <- QC_check(bolt_dist_na, "PI Transect", "Bolts missing distance")
 
@@ -265,6 +266,55 @@ pit_check <- QC_table |> filter(Data %in% "PI Transect" & Num_Records > 0)
 pit_include <- tab_include(pit_check)
 
 #---- Photoplot substrate checks ----
+# Check for missing photoplots
+# Create schedule of photoplot sampling events and # plots
+photocov <- do.call(getPhotoCover, arglist) |> select(SiteCode, StartDate, Year, QAQC, PlotName) |> unique()
+
+photo_sch <- as.data.frame(table(photocov$Year, photocov$SiteCode, photocov$PlotName))
+colnames(photo_sch) <- c("Year", "SiteCode", "PlotName", "Num_Samples")
+
+num_years = length(unique(photo_sch$Year))
+
+photo_sch_wide <- photo_sch |> pivot_wider(names_from = Year, values_from = Num_Samples,
+                                           names_prefix = "yr") |>
+  filter(!is.na(SiteCode)) |> filter(!is.na(PlotName)) |>
+  mutate(num_samples = rowSums(across(where(is.numeric)), na.rm = T)) |>
+  filter(num_samples < num_years) |> filter(num_samples > 0) |>
+  arrange(SiteCode, PlotName)
+
+QC_table <- rbind(QC_table, QC_check(photo_sch_wide, "Photoplot substrate",
+                                     "Site X photoplot combinations missed at least one year."))
+
+photo_sch_tbl <-
+  kable(photo_sch_wide, format = 'html', align = 'c', row.names = F,
+        caption = "Site X photoplot combinations missed at least one year. 0s indicate no cover data for plot") %>%
+  kable_styling(fixed_thead = TRUE, bootstrap_options = c("condensed"),
+                full_width = TRUE, position = 'left', font_size = 12) %>%
+  row_spec(0, extra_css =
+             "border-top: 1px solid #000000; border-bottom: 1px solid #000000;") %>%
+  purrr::reduce(3:ncol(photo_sch_wide), function(x, y){
+    col <- photo_sch_wide[,y]
+    column_spec(x, y, background = ifelse(col == 0, "#F2F2A0", "#ffffff"))}, .init = .) %>%
+  collapse_rows(1, valign = 'top') %>%
+  row_spec(nrow(photo_sch_wide), extra_css = 'border-bottom: 1px solid #000000;') %>%
+  scroll_box(height = "600px")
+
+
+# Check for photoplots with data that don't have bolts in bolts view
+# had to use raw views, b/c functions drop plots without bolt record
+bolts <- ROCKY$Bolts |> select(SiteCode, PlotName, CommunityType) |> unique() |> mutate(Bolt = 1)
+photocov <- ROCKY$PhotoQuadrats_Cover |> mutate(Year = as.numeric(format(StartDate, "%Y"))) |>
+  select(SiteCode, Year, PlotName, CommunityType) |> unique() |> mutate(Photoplot = 1)
+
+photo_vs_bolt <- full_join(photocov, bolts, by = c("SiteCode", "PlotName", "CommunityType")) |>
+  filter(is.na(Bolt)) |> select(-Photoplot)
+
+QC_table <- rbind(QC_table,
+                  QC_check(photo_vs_bolt, "Photoplot substrate", "Photoplots missing record in bolt view"))
+
+miss_photo_bolts <- make_kable2(photo_vs_bolt, "Photoplots missing record in bolt view.")
+
+# Photoplot substrate checks
 pctcov <- do.call(getPhotoCover, args = c(arglist, dropNA = F)) |>
   mutate(sampID1 = paste(UnitCode, SiteCode, Year, sep = "_"),
          sampID = ifelse(QAQC == TRUE, paste0(sampID1, "_Q"), sampID1)) |>
@@ -280,10 +330,9 @@ sample_combos <- pctcov |> select(UnitCode, SiteCode, CommunityType, PlotName) |
   summarize(num_plots = sum(!is.na(PlotName)),
             .groups = 'drop')
 
-# Check for photoplots that have been sampled before but are missing in at least one survey
-# Or that have duplicate data
+# Check for photoplots that have duplicate data
 plot_check1 <- as.data.frame(table(pctcov$sampID, pctcov$CommunityType)) |>
-  filter(Freq < 130 | Freq > 130) |> mutate(sampID = as.character(Var1), # 5 plots * 26 species = 130
+  filter(Freq > 130) |> mutate(sampID = as.character(Var1), # 5 plots * 26 species = 130
                                CommunityType = as.character(Var2),
                                numplots = as.numeric(Freq)) |>
   select(sampID, CommunityType, numplots) |>
@@ -298,9 +347,9 @@ plot_check <- left_join(sample_combos |> select(-num_plots),
 
 
 QC_table <- rbind(QC_table,
-                  QC_check(plot_check, "Photoplot substrate", "Photoplots either missing scores or having duplicate scores."))
+                  QC_check(plot_check, "Photoplot substrate", "Photoplots with duplicate scoring."))
 
-photoplot_tbl <- make_kable(plot_check, "Photoplots either missing scores or with duplicate scores. Will only return missing target species plots that have been sampled at least one year in a given location.")
+photoplot_tbl <- make_kable(plot_check, "Photoplots with duplicate scoring. Need to decide which one to use for analysis in R package, and how to select it.")
 
 # Find year/target species combinations that haven't been scored yet
 plot_check2 <- pctcov |> group_by(sampID, SiteCode, Year, QAQC, PlotName, CommunityType) |>
@@ -337,7 +386,7 @@ QC_table <- rbind(QC_table,
                   QC_check(spp_check, "Photoplot substrate",
                            "Photoplots either missing a species % cover that was recorded in a past survey or having duplicate percent cover."))
 
-spp_plot_tbl <- make_kable(spp_check, "Photoplots either missing a species % cover that was recorded in a past survey or having duplicate percent cover. Will only return missing species for plotoplots that have been sampled at least one year in a given location.")
+spp_plot_tbl <- make_kable2(spp_check, "Photoplots either missing a species % cover that was recorded in a past survey or having duplicate percent cover. Will only return missing species for plotoplots that have been sampled at least one year in a given location.")
 
 # Check for covers that sum to >100%
 pctcov_sum <- pctcov |> group_by(sampID, SiteCode, Year, QAQC, PlotName, CommunityType) |>
@@ -373,35 +422,52 @@ photoplot_check <- QC_table |> filter(Data %in% "Photoplot substrate" & Num_Reco
 
 photoplot_include <- tab_include(photoplot_check)
 
-#++++++++ ENDED HERE ++++++++++
 #---- Photoplot Motile Inverts -----
 micnt <- do.call(getMotileInvertCounts, arglist) |>
   select(UnitCode, SiteCode, Year, QAQC, CommunityType,
          PlotName, SpeciesCode, ScientificName, CommonName, Damage, No.Damage, Subsampled)
 
 # Find NAs
-micnt_nas <- micnt[!complete.cases(micnt),]
+micnt_nas <- micnt[!complete.cases(micnt),c("SiteCode", "Year", "QAQC", "CommunityType", "PlotName", "SpeciesCode",
+                                            "CommonName", "Damage", "No.Damage", "Subsampled")]
 
 QC_table <- rbind(QC_table, QC_check(micnt_nas, "Photoplot Motile Inverts",
                                      "Photoplots with at least 1 NA in motile invertebrate count data."))
 
-micnt_nas_tbl <- make_kable(micnt_nas, "Photoplots with at least 1 NA in motile invertebrate count data.")
+micnt_nas_tbl <- kable(micnt_nas, format = 'html', align = 'c', row.names = F,
+                       col.names = c("SiteCode", "Year", "QAQC", "CommunityType", "PlotName",
+                                     "SpeciesCode", "CommonName", "Damage", "No.Damage", "Subsampled"),
+                       caption = "Photoplots with at least 1 NA in motile invertebrate count data.") |>
+  kable_styling(fixed_thead = TRUE, bootstrap_options = c("condensed"),
+                full_width = TRUE, position = 'left', font_size = 12) |>
+  row_spec(0, extra_css =
+             "border-top: 1px solid #000000; border-bottom: 1px solid #000000;") |>
+  column_spec(8, background = ifelse(is.na(micnt_nas[,8]), "#F2F2A0", "#ffffff")) |>
+  column_spec(9, background = ifelse(is.na(micnt_nas[,9]), "#F2F2A0", "#ffffff")) |>
+  column_spec(10, background = ifelse(is.na(micnt_nas[,10]), "#F2F2A0", "#ffffff")) |>
+  collapse_rows(1, valign = 'top') |>
+  row_spec(nrow(micnt_nas), extra_css = 'border-bottom: 1px solid #000000;') #|>
+#column_spec(2, width = "150px")
 
 # Find plots with > 99% for Damage or No.Damage, in case typo
 micnt99dam <- quantile(micnt$Damage, probs = 0.99, na.rm = T)
 micnt99nodam <- quantile(micnt$No.Damage, probs = 0.99, na.rm = T)
 
-micnt_99dam <- micnt |> filter(Damage > micnt99dam)
+micnt_99dam <- micnt |> filter(Damage > micnt99dam) |>
+  select(SiteCode, Year, QAQC, CommunityType, PlotName, SpeciesCode, CommonName, Damage, Subsampled)
+
 QC_table <- rbind(QC_table, QC_check(micnt_99dam, "Photoplot Motile Inverts",
                                      "Photoplots with a Damage count > 99% of all recorded sites and years."))
+head(micnt_99dam)
 
-micnt_99dam_tbl <- make_kable(micnt_99dam, "Photoplots with a Damage count > 99% of all recorded sites and years.")
+micnt_99dam_tbl <- make_kable2(micnt_99dam, "Photoplots with a Damage count > 99% of all recorded sites and years.")
 
-micnt_99nodam <- micnt |> filter(No.Damage > micnt99nodam)
+micnt_99nodam <- micnt |> filter(No.Damage > micnt99nodam)|>
+  select(SiteCode, Year, QAQC, CommunityType, PlotName, SpeciesCode, CommonName, No.Damage, Subsampled)
 QC_table <- rbind(QC_table, QC_check(micnt_99nodam, "Photoplot Motile Inverts",
                                      "Photoplots with a No.Damage count > 99% of all recorded sites and years."))
 
-micnt_99nodam_tbl <- make_kable(micnt_99nodam, "Photoplots with a No.Damage count > 99% of all recorded sites and years.")
+micnt_99nodam_tbl <- make_kable2(micnt_99nodam, "Photoplots with a No.Damage count > 99% of all recorded sites and years.")
 
 #---- Motile Invertebrate Measures ----
 mimeas <- do.call(getMotileInvertMeas, arglist) |> select(UnitCode, SiteCode, Year, QAQC, PlotName, SpeciesCode,
@@ -412,7 +478,6 @@ QC_table <- rbind(QC_table, QC_check(mimeas_na, "Photoplot Motile Inverts",
                                      "Motile Inverts with NA measurement."))
 
 mimeas_nas_tbl <- make_kable(mimeas_na, "Motile Inverts with NA measurement.")
-
 
 # Measurements > 99.9mm (summary and plotting functions will fail)
 mimeas99.9 <- mimeas |> filter(Measurement > 99.9)
@@ -429,7 +494,7 @@ mimeas99 <- mimeas |> filter(Measurement > mimeas_99)
 QC_table <- rbind(QC_table, QC_check(mimeas99, "Photoplot Motile Inverts",
                                      "Motile Inverts with a measurement > 99% of all measurements recorded among all sites and years."))
 
-mimeas_99_tbl <- make_kable(mimeas99, "Motile Inverts with a measurement > 99% of all measurements recorded among all sites and years.")
+mimeas_99_tbl <- make_kable2(mimeas99, "Motile Inverts with a measurement > 99% of all measurements recorded among all sites and years.")
 
 # Years with lots of 0s instead of measurements
 mimeas_0s <- mimeas |> mutate(zero = ifelse(Measurement == 0, 1, 0)) |>
@@ -442,12 +507,109 @@ QC_table <- rbind(QC_table, QC_check(mimeas_0s, "Photoplot Motile Inverts",
 
 mimeas_0_tbl <- make_kable(mimeas_0s, "Motile Invert sites and years that have measurements of 0.")
 
+# Check that counts match number of measurements up to 10 per species
+micnt <- do.call(getMotileInvertCounts, arglist) |>
+  select(UnitCode, SiteCode, Year, QAQC, StartDate, CommunityType,
+         PlotName, SpeciesCode, ScientificName, CommonName, Damage, No.Damage, Subsampled)
+
+micnt_sum <- micnt |>
+  mutate(Damage = ifelse(is.na(Damage), 0, Damage),
+         No.Damage = ifelse(is.na(No.Damage), 0, No.Damage),
+         num_count = Damage + No.Damage) |>
+  select(SiteCode, Year, PlotName, StartDate, SpeciesCode, ScientificName, CommonName,
+         Subsampled, num_count)
+
+mimeas <- do.call(getMotileInvertMeas, arglist) |>
+  select(UnitCode, SiteCode, Year, StartDate, PlotName, SpeciesCode,
+         ScientificName, CommonName, Measurement)
+
+mimeas_sum <- mimeas |> group_by(SiteCode, Year, PlotName, StartDate, SpeciesCode,
+                                 ScientificName, CommonName) |>
+  summarize(num_meas = sum(!is.na(Measurement)), .groups = 'drop')
+
+mi_comb <- full_join(micnt_sum, mimeas_sum,
+                     by = c("SiteCode", "Year", "PlotName", "StartDate", "SpeciesCode",
+                            "ScientificName", "CommonName")) |>
+  mutate(num_meas = ifelse(is.na(num_meas), 0, num_meas),
+         num_count = ifelse(is.na(num_count), 0, num_count),
+         incorr_count = ifelse(num_count == num_meas | num_count >10 & num_meas == 10, 0, 1)) |>
+  filter(incorr_count == 1)
+
+nrow(mi_comb) #319 records, so splitting up results to be more digestable
+
+# Check for number of measurements > 10 for a given species and photoplot
+mi_comb11 <- mi_comb |> filter(num_meas > 10) |> select(-incorr_count)
+
+QC_table <- rbind(QC_table, QC_check(mi_comb11, "Photoplot Motile Inverts",
+                                     "Motile Invert species with more than 10 measurments."))
+
+mimeas11_tbl <- make_kable(mi_comb11, "Motile Invert species with more than 10 measurments.")
+
+# Check for crab species with measurements
+mi_crab <- mi_comb |> filter(SpeciesCode %in% c("HEMISAN", "CARMAE")) |>
+  filter(num_meas > 0) |> select(-incorr_count)
+
+QC_table <- rbind(QC_table, QC_check(mi_crab, "Photoplot Motile Inverts",
+                                     "Crab species with measurements."))
+
+mi_crab_tbl <- make_kable(mi_crab, "Crab species with measurements.")
+
+# Check for number of measurements < number of counts
+mi_meas_miss <- mi_comb |> filter(!SpeciesCode %in% c("HEMISAN", "CARMAE")) |>
+  filter(incorr_count == 1) |>
+  filter(num_meas < num_count) |>
+  filter(num_meas <= 10) |> select(-incorr_count)
+
+QC_table <- rbind(QC_table, QC_check(mi_meas_miss, "Photoplot Motile Inverts",
+                                     "Motile Invert species with fewer measurements than counts (under 10)."))
+
+mi_meas_miss_tbl <- make_kable2(mi_meas_miss, "Motile Invert species with fewer measurements than counts (under 10).")
+
+# Check for number of counts < number of measurements
+mi_cnt_miss <- mi_comb |> filter(!SpeciesCode %in% c("HEMISAN", "CARMAE")) |>
+  filter(incorr_count == 1) |>
+  filter(num_meas > num_count) |> select(-incorr_count)
+
+QC_table <- rbind(QC_table, QC_check(mi_cnt_miss, "Photoplot Motile Inverts",
+                                     "Motile Invert species with fewer counts than measurements."))
+
+mi_cnt_miss_tbl <- make_kable2(mi_cnt_miss, "Motile Invert species with fewer counts than measurements.")
+
+# Check that all photoplots sampled for cover have motile invert counts and vice versa
+photo <- do.call(getPhotoCover, arglist) |>
+  group_by(SiteCode, Year, StartDate, QAQC, CommunityType, PlotName) |>
+  summarize(photo_sampled = 1, .groups = "drop")
+
+motinv <- do.call(getMotileInvertCounts, arglist) |>
+  group_by(SiteCode, Year, StartDate, QAQC, CommunityType, PlotName) |>
+  summarize(count = sum(No.Damage) + sum(Damage),
+            .groups = 'drop') |>
+  mutate(motinv_sampled = ifelse(!is.na(count), 1, 0)) |> select(-count)
+
+photo_vs_mot <- left_join(photo, motinv, by = c("SiteCode", "Year", "StartDate", "QAQC", "CommunityType", "PlotName")) |>
+  filter(is.na(motinv_sampled))
+
+QC_table <- rbind(QC_table, QC_check(photo_vs_mot, "Photoplot Motile Inverts",
+                                     "Motile Invert species with fewer counts than measurements."))
+
+photo_vs_mot_tbl <- make_kable2(photo_vs_mot, "Photoplots missing motile Invert counts. Note that LITHUN Red Algae records are because there are no records for the Red Algae plots in the Bolts view.")
+
+mot_vs_photo <- left_join(motinv, photo, by = c("SiteCode", "Year", "StartDate", "QAQC", "CommunityType", "PlotName")) |>
+  filter(is.na(photo_sampled))
+
+QC_table <- rbind(QC_table, QC_check(mot_vs_photo, "Photoplot Motile Inverts",
+                                     "Motile Invert data missing photoplot data."))
+
+mot_vs_photo_tbl <- make_kable2(mot_vs_photo, "Motile Invert data missing photoplot data.")
+
+
 # Check if photoplot tab returned any records to determine whether to plot that tab in report
 photoplot_mi_check <- QC_table |> filter(Data %in% "Photoplot Motile Inverts" & Num_Records > 0)
 
 photoplot_mi_include <- tab_include(photoplot_mi_check)
 
-#---- Echinoderms -----
+
+#----- Echinoderms -----
 # Counts
 eccnt <- do.call(getEchinoCounts, arglist) |>
   select(UnitCode, SiteCode, Year, QAQC,
