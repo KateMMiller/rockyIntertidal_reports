@@ -144,7 +144,7 @@ cat("### Photoplot Cover {.tabset} ", "\n\n")
 
 cat("<hr>")
 
-check_null_print(photo_sch_tbl, 4, "Plot not sampled")
+check_null_print(photo_sch_tbl, 4, "Plot not sampled/missing")
 
 check_null_print(miss_photo_bolts, 4, "Photoplots missing bolts")
 
@@ -158,6 +158,8 @@ check_null_print(pctcov_sum_tbl, 4, "Total cover over 100")
 
 check_null_print(covsum0_tbl, 4, "Total cover sums to 0")
 
+check_null_print(photo_vs_mot_tbl, 4, "Photoplots missing motinv.")
+
 
 #check_null_print(spp_plot_tbl, 4, "Missing or dup. species cover") # hard to make sense of this one; 
 # replacing with schedule of sites and plots with records
@@ -166,6 +168,8 @@ check_null_print(covsum0_tbl, 4, "Total cover sums to 0")
 
 ```{r eval = photoplot_mi_include, results = 'asis'}
 cat("### Motile Inverts {.tabset} ", "\n\n")
+
+check_null_print(mint_sch_tbl, 4, "Plot not sampled/missing")
 
 check_null_print(micnt_nas_tbl, 4, "Counts with NAs")
 
@@ -193,6 +197,8 @@ check_null_print(mi_cnt_miss_tbl, 4, "Fewer counts than meas.")
 
 ### Echinoderms {.tabset}
 ```{r eval = echino_include, results = 'asis'}
+check_null_print(ech_sch_tbl, 4, "Transect not sampled/missing")
+
 check_null_print(eccnt_nas_tbl, 4, "Counts with NAs")
 
 check_null_print(eccnt_99_tbl, 4, "Counts over 99pct")
@@ -206,6 +212,10 @@ check_null_print(ecmeas_99_tbl, 4, "Meas. over 99pct")
 check_null_print(ecmeas_0_tbl, 4, "Meas. of 0")
 
 check_null_print(echinomeas11_tbl, 4, "Meas. counts over 10")
+
+check_null_print(echino_meas_miss_tbl, 4, "Fewer meas. than counts")
+
+check_null_print(echino_cnt_miss_tbl, 4, "Fewer counts than meas.")
 
 
 ```

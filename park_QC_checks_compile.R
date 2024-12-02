@@ -11,7 +11,7 @@
 # importData()
 #
 #
-# year = 2013:2021
+# year = 2013:2024
 # park = "ACAD"
 
 
@@ -302,17 +302,19 @@ photo_sch_tbl <-
 
 # Check for photoplots with data that don't have bolts in bolts view
 # had to use raw views, b/c functions drop plots without bolt record
-bolts <- ROCKY$Bolts |> select(SiteCode, PlotName, CommunityType) |> unique() |> mutate(Bolt = 1)
+bolts <- ROCKY$Bolts |> select(UnitCode, SiteCode, PlotName, CommunityType) |> unique() |> mutate(Bolt = 1)
 photocov <- ROCKY$PhotoQuadrats_Cover |> mutate(Year = as.numeric(format(StartDate, "%Y"))) |>
   select(SiteCode, Year, PlotName, CommunityType) |> unique() |> mutate(Photoplot = 1)
 
 photo_vs_bolt <- full_join(photocov, bolts, by = c("SiteCode", "PlotName", "CommunityType")) |>
   filter(is.na(Bolt)) |> select(-Photoplot)
 
-QC_table <- rbind(QC_table,
-                  QC_check(photo_vs_bolt, "Photoplot substrate", "Photoplots missing record in bolt view"))
+photo_vs_bolt2 <- photo_vs_bolt |> filter(UnitCode %in% park) |> filter(Year %in% year)
 
-miss_photo_bolts <- make_kable2(photo_vs_bolt, "Photoplots missing record in bolt view.")
+QC_table <- rbind(QC_table,
+                  QC_check(photo_vs_bolt2, "Photoplot substrate", "Photoplots missing record in bolt view"))
+
+miss_photo_bolts <- make_kable2(photo_vs_bolt2, "Photoplots missing record in bolt view.")
 
 # Photoplot substrate checks
 pctcov <- do.call(getPhotoCover, args = c(arglist, dropNA = F)) |>
@@ -331,7 +333,6 @@ sample_combos <- pctcov |> select(UnitCode, SiteCode, CommunityType, PlotName) |
             .groups = 'drop')
 
 # Check for photoplots that have duplicate data
-
 plot_check1 <- as.data.frame(table(pctcov$sampID, pctcov$CommunityType)) |>
   filter(Freq > 130) |> mutate(sampID = as.character(Var1), # 5 plots * 26 species = 130
                                CommunityType = as.character(Var2),
@@ -474,6 +475,38 @@ QC_table <- rbind(QC_table, QC_check(micnt_99nodam, "Photoplot Motile Inverts",
 
 micnt_99nodam_tbl <- make_kable2(micnt_99nodam, "Photoplots with a No.Damage count > 99% of all recorded sites and years.")
 
+# Create schedule of photoplot sampling events and # plots
+mint <- do.call(getMotileInvertCounts, arglist) |> select(SiteCode, StartDate, Year, QAQC, PlotName) |> unique()
+
+mint_sch <- as.data.frame(table(mint$Year, mint$SiteCode, mint$PlotName))
+colnames(mint_sch) <- c("Year", "SiteCode", "PlotName", "Num_Samples")
+
+num_years = length(unique(mint_sch$Year))
+
+mint_sch_wide <- photo_sch |> pivot_wider(names_from = Year, values_from = Num_Samples,
+                                           names_prefix = "yr") |>
+  filter(!is.na(SiteCode)) |> filter(!is.na(PlotName)) |>
+  mutate(num_samples = rowSums(across(where(is.numeric)), na.rm = T)) |>
+  filter(num_samples < num_years) |> filter(num_samples > 0) |>
+  arrange(SiteCode, PlotName)
+
+QC_table <- rbind(QC_table, QC_check(mint_sch_wide, "Motile Invertebrates",
+                                     "Site X photoplot motile invertebrate combinations missed at least one year."))
+
+mint_sch_tbl <-
+  kable(mint_sch_wide, format = 'html', align = 'c', row.names = F,
+        caption = "Site X photoplot motile invertebrate combinations missed at least one year. 0s indicate no cover data for plot") %>%
+  kable_styling(fixed_thead = TRUE, bootstrap_options = c("condensed"),
+                full_width = TRUE, position = 'left', font_size = 12) %>%
+  row_spec(0, extra_css =
+             "border-top: 1px solid #000000; border-bottom: 1px solid #000000;") %>%
+  purrr::reduce(3:ncol(mint_sch_wide), function(x, y){
+    col <- mint_sch_wide[,y]
+    column_spec(x, y, background = ifelse(col == 0, "#F2F2A0", "#ffffff"))}, .init = .) %>%
+  collapse_rows(1, valign = 'top') %>%
+  row_spec(nrow(mint_sch_wide), extra_css = 'border-bottom: 1px solid #000000;') %>%
+  scroll_box(height = "600px")
+
 #---- Motile Invertebrate Measures ----
 mimeas <- do.call(getMotileInvertMeas, arglist) |> select(UnitCode, SiteCode, Year, QAQC, PlotName, SpeciesCode,
                                                           ScientificName, CommonName, Measurement)
@@ -595,9 +628,9 @@ photo_vs_mot <- left_join(photo, motinv, by = c("SiteCode", "Year", "StartDate",
   filter(is.na(motinv_sampled))
 
 QC_table <- rbind(QC_table, QC_check(photo_vs_mot, "Photoplot Motile Inverts",
-                                     "Motile Invert species with fewer counts than measurements."))
+                                     "Photoplots missing Motile Invert counts."))
 
-photo_vs_mot_tbl <- make_kable2(photo_vs_mot, "Photoplots missing motile Invert counts. Note that LITHUN Red Algae records are because there are no records for the Red Algae plots in the Bolts view.")
+photo_vs_mot_tbl <- make_kable2(photo_vs_mot, "Photoplots missing Motile Invert counts. Note that LITHUN Red Algae records are because there are no records for the Red Algae plots in the Bolts view.")
 
 mot_vs_photo <- left_join(motinv, photo, by = c("SiteCode", "Year", "StartDate", "QAQC", "CommunityType", "PlotName")) |>
   filter(is.na(photo_sampled))
@@ -619,6 +652,35 @@ photoplot_mi_include <- tab_include(photoplot_mi_check)
 eccnt <- do.call(getEchinoCounts, arglist) |>
   select(UnitCode, SiteCode, Year, QAQC,
          PlotName, SpeciesCode, ScientificName, Count)
+
+# Check for missing tidepools
+ech_sch <- eccnt |> select(SiteCode, Year, PlotName) |> unique()
+ech_sch2 <- as.data.frame(table(ech_sch$Year, ech_sch$SiteCode, ech_sch$PlotName))
+colnames(ech_sch2) <- c("Year", "SiteCode", "PlotName", "Num_Samples")
+num_years = length(unique(ech_sch2$Year))
+
+ech_sch_wide <- ech_sch2 |> pivot_wider(names_from = Year, values_from = Num_Samples, names_prefix = "yr") |>
+  filter(!is.na(SiteCode)) |> filter(!is.na(PlotName)) |>
+  mutate(num_samples = rowSums(across(where(is.numeric)), na.rm = T)) |>
+  filter(num_samples < num_years) |> filter(num_samples > 0) |>
+  arrange(SiteCode, PlotName)
+
+QC_table <- rbind(QC_table, QC_check(ech_sch_wide, "Echinoderms",
+                                     "Site X tidepool transect combinations missed at least one year."))
+
+ech_sch_tbl <-
+  kable(ech_sch_wide, format = 'html', align = 'c', row.names = F,
+        caption = "Site X tidepool transect combinations missed at least one year. 0s indicate no cover data for plot") %>%
+  kable_styling(fixed_thead = TRUE, bootstrap_options = c("condensed"),
+                full_width = TRUE, position = 'left', font_size = 12) %>%
+  row_spec(0, extra_css =
+             "border-top: 1px solid #000000; border-bottom: 1px solid #000000;") %>%
+  purrr::reduce(3:ncol(ech_sch_wide), function(x, y){
+    col <- ech_sch_wide[,y]
+    column_spec(x, y, background = ifelse(col == 0, "#F2F2A0", "#ffffff"))}, .init = .) %>%
+  collapse_rows(1, valign = 'top') %>%
+  row_spec(nrow(ech_sch_wide), extra_css = 'border-bottom: 1px solid #000000;') %>%
+  scroll_box(height = "600px")
 
 # Find NAs
 eccnt_nas <- eccnt[!complete.cases(eccnt),]
@@ -699,8 +761,6 @@ echino_comb <- full_join(echinocnt, echinomeas_sum,
          incorr_count = ifelse(Count == num_meas | Count >10 & num_meas == 10, 0, 1)) |>
   filter(incorr_count == 1)
 
-echino_comb
-
 # Check for number of measurements > 10 for a given species and photoplot
 echino_comb11 <- echino_comb |> filter(num_meas > 10) |> select(-incorr_count)
 
@@ -721,14 +781,14 @@ QC_table <- rbind(QC_table, QC_check(echino_meas_miss, "Echinoderms",
 echino_meas_miss_tbl <- make_kable2(echino_meas_miss, "Echinoderm species with fewer measurements than counts (under 10).")
 
 # Check for number of counts < number of measurements
-echino_cnt_echinoss <- echino_comb |> filter(!SpeciesCode %in% c("HEechinoSAN", "CARMAE")) |>
+echino_cnt_miss <- echino_comb |> filter(!SpeciesCode %in% c("HEMISAN", "CARMAE")) |>
   filter(incorr_count == 1) |>
   filter(num_meas > num_count) |> select(-incorr_count)
 
-QC_table <- rbind(QC_table, QC_check(echino_cnt_echinoss, "Photoplot Motile Inverts",
-                                     "Motile Invert species with fewer counts than measurements."))
+QC_table <- rbind(QC_table, QC_check(echino_cnt_miss, "Echinoderms",
+                                     "Echinoderm species with fewer counts than measurements."))
 
-echino_cnt_echinoss_tbl <- make_kable2(echino_cnt_echinoss, "Motile Invert species with fewer counts than measurements.")
+echino_cnt_miss_tbl <- make_kable2(echino_cnt_miss, "Echinoderm species with fewer counts than measurements.")
 
 
 # Check if photoplot tab returned any records to determine whether to plot that tab in report
