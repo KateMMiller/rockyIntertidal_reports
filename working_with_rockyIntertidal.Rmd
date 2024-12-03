@@ -3,57 +3,141 @@ output:
   html_document:
     css: www/styles.css
     anchor_sections: FALSE
-    includes:
-      in_header: "header_manual.html"
-  
 ---
 ```{r setup, include = F}
 knitr::opts_chunk$set(echo = TRUE)
 options(knitr.kable.NA = '', scipen = 100)
 ```
 
-rockyIntertidal R package demo {.tabset}
+## rockyIntertidal R package demo {.tabset .tabset-pills}
 ---
 
-### Installation and Imports {.tabset}
+### Getting started {.tabset}
 
-#### Install and load package
-Install rockyIntertidal R package and dependencies. If it asks to update any packages, please do so. Also note that you need to have the devtools package installed. If the code below fails, updating the devtool packages and its dependencies may help. 
-```{r eval = FALSE}
-devtools::install_github('katemmiller/rockyIntertidal')
+#### Installation
+<h4><b>Step 1.</b> Install R, RStudio, and RTools in Software Center</h4>
+<h4><b>Step 2.</b> Install devtools package in R:</h4>
+```{r, eval = F, class.source = "indent"}
+install.packages('devtools')
 ```
-
-```{r}
+<h4><b>Step 3.</b> Install rockyIntertidal from github</h4>
+Note that whenever the `rockyIntertidal`` package is updated, you can rerun this code to install the latest version.
+```{r, eval = F, class.source = "indent"}
+library(devtools)
+install_github("KateMMiller/rockyIntertidal")
+```
+<h4><b>Step 4.</b> Load rockyIntertidal R package</h4>
+```{r, class.source = "indent"}
 library(rockyIntertidal)
 ```
-
-#### Import data
-Importing can either be done via file or a DSN named rocky_BE (see below). Note that the package currently only works with the version of the frontend database here: <a href = "https://doimspp.sharepoint.com/:u:/r/sites/NPSACADIntertidalZone/Shared%20Documents/Data_Pipeline/db_that_works_with_R_package/NETN_RockyIntertidal_Database_fe_20190830.mdb?csf=1&web=1&e=XGay2I">NPS ACAD Intertidal Zone > Data_Pipeline > db_that_works_with_R_package > NETN_RockyIntertidal_Database_fe_20190830.mdb</a>. Eventually these queries will all be moved to the rocky intertidal backend, hence the use of BE. 
-
-<h3>Import from file </h3> 
-Note you'll need to change the `filepath` to reflect the path where this database is on your machine.
-```{r, eval = F}
-filepath <- "../data/rocky/Database/" 
-importData(type = 'file', path = paste0(filepath, "NETN_RockyIntertidal_Database_fe_20190830.mdb"))
-ls() # list files in global environment
-```
-
-<h3>Import from DSN </h3> 
-First you'll need to open ODBC Data Source Administrator and add a new User DSN called rocky_BE that is linked to the database in the above code chunk. Then you can run the code below.
-```{r, results = 'hide'}
+<h4><b>Step 5.</b> Import data</h4>
+Note that R is not able to connect to files on Sharepoint or MS Teams (b/c Teams also stores all files on Sharepoint). That means you need to store data package files on your local machine or on a server (e.g. NETN Z drive). The default option for importing data will add the data package views (i.e., flatfiles) to an environment called ROCKY to your Environment work space (i.e. Environment tab in top right panel). If you would rather import each individual view into your R session, specify with the new_env argument (e.g., `importData(new_env = F)`). To import data using the default settings (i.e. run `importData()` with no arguments), you must have the rocky intertidal front end set as a User DSN called rocky_FE. The database front end must also be linked with the latest rocky intertidal backend to pull in the latest data.  
+```{r echo = F, results = 'hide', include = F}
 importData()
-ls()# list files in global environment
+```
+<p class = 'indent'>
+<span style='color:#1942B5;'><b>Option 1.</b> Import data via .csv files. The file path should be where csvs are on your machine or server.</span></p>
+```{r, eval = F, class.source = "indent"}
+importData(type = 'csv',
+           filepath = "C:/NETN/R_Dev/data") # update filepath to your computer
+```
+<p class = 'indent'>
+<span style='color:#1942B5;'><b>Option 2.</b> Import data via zip file of csvs. The filepath should be the location and name of the zip file.</span></p>
+```{r eval = F, class.source = "indent"}
+importData(type = 'zip',
+           filepath = "C:/NETN/R_Dev/data/NETN_RockyIntertidal_Data_Package_20240927.zip")
+```
+<p class = 'indent'>
+<span style='color:#1942B5;'><b>Option 3.</b> Import data via data package database file on your computer</span></p>
+```{r eval = F, class.source = "indent"}
+importData(type = 'dbfile',
+           filepath = "C:/NETN/R_Dev/data/NETN_RockyIntertidal_Database_fe_20240919.accdb")
+```
+<p class = 'indent'>
+<span style='color:#1942B5;'><b>Option 4.</b> Import data via data package database DSN (Data Source Name) on your computer. </span>
+Note that this is the default setting. As long as you have a named DSN called "rocky_FE" that links to the data package database, and that database links to the latest rocky intertidal backend database, the code below will run. See <i>Setting up DSN</i> tab for how to set up DSN.</p>
+```{r eval = F, class.source = "indent"}
+importData() # easiest
+importData(type = 'DSN', odbc = "rocky_FE") # equivalent to line above
+```
+<h4><b>Step 6.</b> (Optional) Export data package to zip </h4>
+You can export all of the csvs to a zip file with the day's date stamped on the file name. This allows you to import the tables from the database, then export the csvs as one zip file.
+```{r eval = F, class.source = "indent"}
+exportData(filepath = "./data", zip = TRUE) 
 ```
 
-Once you successfully run the `importData()` function, you should see an object named "ROCKY" in the Environment pane. The `importData()` function default is to import all of the flatfiles into this ROCKY environment to keep your workspace clean. If you'd rather all of the flatfiles go directly into your global environment, you can run `importData(new_env = FALSE)`
-
-<h3>Import Water temp logger data </h3>
-The temp logger files will go into your ROCKY environment named the 6 letter location code. The `buoy = T` loads the buoy data for each park to the ROCKY environment. The `simplify = T` simplifies the datasets to include only 1 logger measurment per high tide event (for water temp) and 1 buoy record per day. All plotting functions require the simplified data.
-
-The path below is from my machine. You can also access them on the Z drive here: "Z:/PROJECTS/MONITORING/Rocky_Intertidal/NETN/5_Data/Data_Files/Temperature/Compiled_HT_water_temps_2011-2022/"
-```{r, results = 'hide'}
-importWaterTemp(path = "../data/rocky/temp_data/Compiled_HT_water_temps/", buoy = T, simplify = T)
+```{r eval = F, echo = F, class.source = "indent"}
+exportData(filepath = "../data", zip = TRUE) 
 ```
+
+<h4><b>Step 7. Play with the data</b></h4>
+The functions in the `rockyIntertidal`` package are designed to work with the views, and are the best way to interact with the data to query by park, site, year, species, etc. However, if you want to view the raw data, and you imported the data into the ROCKY environment, you can access them with the code below:
+```{r eval = F}
+# See list of the views
+names(ROCKY)
+
+# See top 6 records 
+head(ROCKY$Echinoderm_Counts)
+
+# Check structure of view
+str(ROCKY$Echinoderm_Counts)
+
+# Look at the whole view
+View(ROCKY$Bolts)
+
+# Assign a view to a data frame named chem in R. Interact with sppcov the way you would work with any normal data frame in R. 
+sppcov <- ROCKY$PhotoQuadrats_Cover
+
+```
+
+#### Getting help
+<h4><b>Getting (and improving) help</b></h4>
+The functions in `rockyIntertidal`` have help documentation like any R package. To view the help, you can go to the Packages tab and click on rockyIntertidal (see below). That will show you all the functions in the package. Clicking on individual functions will take you to the help documentation for that function. 
+```{r echo = F, out.width = 500, fig.align = 'center'}
+knitr::include_graphics("C:/NETN/R_Dev/rockyIntertidal/testing_scripts/finding_R_package.jpg")
+```
+
+<p class = 'fxn'>You can also see the help of a function by running, for example: </p>
+```{r, class.source = 'indent', eval = F}
+?importData
+```
+
+<p class = 'fxn'>If `rockyIntertidal` isn't loaded yet, you'd run: </p>
+```{r, class.source = 'indent', eval = F}
+?rockyIntertidal::importData
+```
+
+Each function's help includes a Description, Usage (i.e. function arguments and their defaults), Argument options/definitions, and several examples showing how the function can be used. 
+
+<b><span style='color:red;'>This is where you come in! If you notice typos or can think of better descriptions, examples, error messages, etc., please send them my way!</b></span> After we're more comfortable with R packages and get versed on GitHub, you'll be able to make those changes directly in the package. For now, you can just send me your suggestions and I'll make the changes.
+
+Finally, if you ever want to peak under the hood at the function, you can view it several ways. 
+<ol>
+<li>Keep F2 key pressed and click on the function name in R. This trick works for many but not all functions in R.</li>
+<li>View code in the <a href="https://github.com/KateMMiller/rockyIntertidal/tree/main">GitHub katemmiller/rockyIntertidal repo</a>. The functions are in the R folder. 
+
+#### Setting up DSN
+<h4><b>Setting up a DSN</b></h4>
+<ol>
+<li>Go to Windows Start Menu and search ODBC. Click on ODBC Data Sources (64-bit) </li>
+
+```{r echo = F, out.height = '457px', out.width = '564px', fig.align = 'center'}
+knitr::include_graphics("C:/NETN/R_Dev/Water/waterNETN/testing_scripts/ODBC_step_1.jpg")
+```
+<br>
+<li>Click on <i>Add</i>, then select <i>Microsoft Access Driver (\*.mdb, \*.accdb)</i> then click <i>Finish</i> in next menu.</li>
+
+```{r echo = F, out.height = '450px', out.width = '1018px', fig.align = 'center'}
+knitr::include_graphics("C:/NETN/R_Dev/Water/waterNETN/testing_scripts/ODBC_step_2.jpg")
+```
+<br>
+<li>Enter <b>rocky_FE</b> into the Data Source Name (red arrow), click on Select (red circle). In new window, click on C:/ (orange arrow) and find the path to your database. If it's on the Z drive, then click on the Drives window and select correct Drive. Click on the data package database (yellow arrow). When complete, click OK. Finally, add the name of the database file to the Description (blue arrow), so it's easier to check whether you're using the latest version.  </li>
+```{r echo = F, out.height = '486px', out.width = '600px', fig.align = 'center'}
+knitr::include_graphics("C:/NETN/R_Dev/Water/waterNETN/testing_scripts/ODBC_step_3.jpg")
+```
+
+<li>If updating an existing DSN, follow similar process, except click on the DSN in the first window and select <i>Configure</i> instead of Add.</li>
+</ol>
 
 ### Get data
 <details open><summary class = 'drop'><h3>Access manually</h3></summary>
