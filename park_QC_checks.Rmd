@@ -73,19 +73,19 @@ cat("<hr>")
 
 check_null_print(miss_bolt_elev_dist, 4, "Missing distance")
   
+check_null_print(bolt_check_tbl, 4, "Impossible elev. X dist.")
+
 check_null_print(later_bolt_dist_0, 4, "0 after first bolt")
 
 check_null_print(nonchron_bolt_dist, 4, "Bolts out of order")
 
 check_null_print(missing_bolts, 4, "Missed bolts")
 
+check_null_print(missing_trans, 4, "Missed transects")
+
 check_null_print(short_trans, 4, "Short transects")
 
 check_null_print(long_trans, 4, "Long transects")
-
-check_null_print(missing_trans, 4, "Missed transects")
-
-check_null_print(bolt_check_tbl, 4, "Impossible elev. X dist.")
 
 check_null_print(spp_high_elev, 4, "Spp. elev. above hist. range")
 
@@ -135,15 +135,7 @@ check_null_print(photo_vs_mot_tbl, 4, "Photoplots missing motinv.")
 
 check_null_print(micnt_nas_tbl, 4, "Counts with NAs")
 
-check_null_print(micnt_99dam_tbl, 4, "Damage counts over 99pct")
-
-check_null_print(micnt_99nodam_tbl, 4, "No.Damage counts over 99pct")
-
 check_null_print(mimeas_nas_tbl, 4, "Meas. with NAs")
-
-check_null_print(mimeas_99.9_tbl, 4, "Meas. over 99.9cm")
-
-check_null_print(mimeas_99_tbl, 4, "Meas. over 99pct")
 
 check_null_print(mimeas_0_tbl, 4, "Meas. of 0")
 
@@ -154,6 +146,15 @@ check_null_print(mi_crab_tbl, 4, "Crabs with meas.")
 check_null_print(mi_meas_miss_tbl, 4, "Fewer meas. than counts")
 
 check_null_print(mi_cnt_miss_tbl, 4, "Fewer counts than meas.")
+
+check_null_print(mimeas_99.9_tbl, 4, "Meas. over 99.9cm")
+
+check_null_print(mimeas_99_tbl, 4, "Meas. over 99pct")
+
+check_null_print(micnt_99dam_tbl, 4, "Damage counts over 99pct")
+
+check_null_print(micnt_99nodam_tbl, 4, "No.Damage counts over 99pct")
+
 
 ```
 
@@ -166,13 +167,7 @@ check_null_print(ech_sch_tbl, 4, "Transect not sampled/missing")
 
 check_null_print(eccnt_nas_tbl, 4, "Counts with NAs")
 
-check_null_print(eccnt_99_tbl, 4, "Counts over 99pct")
-
 check_null_print(ecmeas_nas_tbl, 4, "Meas. with NAs")
-
-check_null_print(ecmeas_99.9_tbl, 4, "Meas. over 99.9cm")
-
-check_null_print(ecmeas_99_tbl, 4, "Meas. over 99pct")
 
 check_null_print(ecmeas_0_tbl, 4, "Meas. of 0")
 
@@ -181,6 +176,13 @@ check_null_print(echinomeas11_tbl, 4, "Meas. counts over 10")
 check_null_print(echino_meas_miss_tbl, 4, "Fewer meas. than counts")
 
 check_null_print(echino_cnt_miss_tbl, 4, "Fewer counts than meas.")
+
+check_null_print(eccnt_99_tbl, 4, "Counts over 99pct")
+
+check_null_print(ecmeas_99.9_tbl, 4, "Meas. over 99.9cm")
+
+check_null_print(ecmeas_99_tbl, 4, "Meas. over 99pct")
+
 
 ```
 
@@ -193,6 +195,10 @@ cat("<hr>")
 check_null_print(barns_pre19_tbl, 4, "Dup/missing plots pre2019")
 
 check_null_print(barns_post19_tbl, 4, "Dup/missing plots post2019")
+
+check_null_print(barn_miss_dt_tbl, 4, "Missing date taken")
+
+check_null_print(barn_miss_ds_tbl, 4, "Missing date scored")
 
 check_null_print(barns_pre19_99_tbl, 4, "Counts outside 99pct pre2019")
 

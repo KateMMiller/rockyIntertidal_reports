@@ -949,6 +949,25 @@ barns_post19_99_tbl <-
   row_spec(nrow(barns_post19_sch2), extra_css = 'border-bottom: 1px solid #000000;') %>%
   scroll_box(height = "600px")
 
+# Barnacle data missing date taken
+barn_miss_dt <- barns |> filter(is.na(DateTaken)) |>
+  select(SiteCode, Year, PlotName, DateScored, DateTaken, Notes)
+
+QC_table <- rbind(QC_table, QC_check(barn_miss_dt, "Barnacle Recruitment",
+                                     "Barnacle plots missing date taken."))
+
+barn_miss_dt_tbl <- make_kable2(barn_miss_dt, "Barnacle plots missing date taken.")
+
+# Barnacle data missing date scored
+barn_miss_ds <- barns |> filter(is.na(DateScored)) |>
+  select(SiteCode, Year, PlotName, DateTaken, DateScored, Notes)
+
+QC_table <- rbind(QC_table, QC_check(barn_miss_ds, "Barnacle Recruitment",
+                                     "Barnacle plots missing date scored."))
+
+barn_miss_ds_tbl <- make_kable2(barn_miss_ds, "Barnacle plots missing date scored.")
+
+
 # Check if barnacle tab returned any records to determine whether to plot that tab in report
 barn_check <- QC_table |> filter(Data %in% "Barnacle Recruitment" & Num_Records > 0)
 
