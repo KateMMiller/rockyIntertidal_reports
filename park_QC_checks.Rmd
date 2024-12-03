@@ -103,7 +103,7 @@ cat("### Photoplot Cover {.tabset} ", "\n\n")
 
 cat("<hr>")
 
-check_null_print(photo_sch_tbl, 4, "Plot not sampled/missing")
+check_null_print(photo_sch_tbl, 4, "Plot not sampled ormissing")
 
 check_null_print(miss_photo_bolts, 4, "Photoplots missing bolts")
 
@@ -117,6 +117,8 @@ check_null_print(covsum_tbl, 4, "Total cover under 100")
 
 check_null_print(pctcov_sum_tbl, 4, "Total cover over 100")
 
+check_null_print(spp_plot_tbl, 4, "Dup. or Missing species")
+
 check_null_print(covsum0_tbl, 4, "Total cover sums to 0")
 
 #check_null_print(spp_plot_tbl, 4, "Missing or dup. species cover") # hard to make sense of this one; 
@@ -129,7 +131,7 @@ cat("### Motile Inverts {.tabset} ", "\n\n")
 
 cat("<hr>")
 
-check_null_print(mint_sch_tbl, 4, "Plot not sampled/missing")
+check_null_print(mint_sch_tbl, 4, "Plot not sampled or missing")
 
 check_null_print(photo_vs_mot_tbl, 4, "Photoplots missing motinv.")
 
@@ -163,7 +165,7 @@ cat("### Echinoderms {.tabset}", "\n\n")
 
 cat("<hr>")
 
-check_null_print(ech_sch_tbl, 4, "Transect not sampled/missing")
+check_null_print(ech_sch_tbl, 4, "Transect not sampled or missing")
 
 check_null_print(eccnt_nas_tbl, 4, "Counts with NAs")
 
@@ -192,9 +194,9 @@ cat("### Barnacle Recruitment {.tabset}", "\n\n")
 
 cat("<hr>")
 
-check_null_print(barns_pre19_tbl, 4, "Dup/missing plots pre2019")
+check_null_print(barns_pre19_tbl, 4, "Dup. or missing plots pre2019")
 
-check_null_print(barns_post19_tbl, 4, "Dup/missing plots post2019")
+check_null_print(barns_post19_tbl, 4, "Dup. or missing plots post2019")
 
 check_null_print(barn_miss_dt_tbl, 4, "Missing date taken")
 
