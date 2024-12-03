@@ -9,7 +9,7 @@ output:
 params:
   year_curr: 2024 # Current year of sampling
   park: "ACAD"
-  all_years: TRUE # If FALSE, only reports on year_curr; TRUE reports on all years
+  all_years: TRUE # If FALSE, only reports on year_curr; TRUE reports on all years; Not fully enabled for FALSE yet.
   
 ---
 ```{r setup, include = F}
@@ -22,7 +22,9 @@ library(rockyIntertidal)
 library(tidyverse)
 library(knitr)
 library(kableExtra)
-library(htmltools) # for tagList
+#library(htmltools) # for tagList
+library(DT)
+library(htmlwidgets)
 
 importData()
 park = params$park
@@ -46,50 +48,6 @@ Rocky intertidal Quality Control checking for `r params$park` and `r paste(year,
 source('park_QC_checks_compile.R')
 ```
 
-```{r, warning = FALSE, message = FALSE, results = 'hide', include = FALSE, eval = F}
-#---- Plotting bolt elevation by distance -----
-trans_contour_plots <- 
-  purrr::map(locs$SiteCode, 
-             ~plotPITransects(
-               site = ., xlab = "Distance (m)", ylab = "Elevation MLLW (m)", 
-               title = TRUE, years = 2013:year_curr)) |> set_names(locs$SiteCode)
-
-#---- Plotting species by elevation -----
-trans_species_plots <- 
-  purrr::map(locs$SiteCode,
-             ~plotPISpecies(site = ., xlab = "Year", ylab = "Elevation MLLW (m)", 
-                                    title = TRUE, years = 2013:year_curr, facet = T) +
-    theme(legend.position = 'bottom',
-          legend.text = element_text(size = 10),
-          legend.key.size = unit(0.5, 'cm'),
-          legend.key.width = unit(0.5, 'cm'),
-          legend.key.height = unit(0.5, 'cm'),
-          legend.title = element_blank())) |> set_names(locs$SiteCode)
-
-#---- Plotting photoplot cover by target species and site ----
-photo_species_plots <- purrr::map(locs$SiteCode,
-  ~plotPhotoCover(site = ., top_spp = 3, years = 2013:year_curr, plotly = T)                                
-  ) |> set_names(locs$SiteCode)
-
-
-#---- Plotting motile invert counts by target species and site ----
-motinv_species_plots <- purrr::map(locs$SiteCode,
-  ~plotMotileInvertCounts(site = ., main_groups = TRUE, years = 2013:year_curr, 
-                          plotly = T)) |> set_names(locs$SiteCode)
-
-#---- Plotting motile invert measures by target species and site ----
-motinv_meas_plots <- purrr::map(locs$SiteCode,
-  ~plotMotileInvertMeas(site = ., years = 2013:year_curr)) |> 
-  set_names(locs$SiteCode)
-
-#---- Plotting echinorderm counts by site
-echino_cnt_plots <- purrr::map(locs$SiteCode,
-  ~plotEchinoCounts(site = ., years = 2013:year_curr, plotly = T)) |> set_names(locs$SiteCode)
-
-echino_meas_plots <- purrr::map(locs$SiteCode,
-  ~plotEchinoMeas(site = ., years = 2013:year_curr)) |> set_names(locs$SiteCode)
-
-```
 
 ### QC Checks {.tabset}
 
@@ -103,7 +61,8 @@ QC_check_table
 ```{r echo = F, eval = include_visit_table, results = 'asis'}
 cat("#### Compiled Notes", "\n")
 if(include_visit_table == TRUE){
-  visit_table
+  #visit_table
+  visit_dt
 }
 ```
 
@@ -148,6 +107,8 @@ check_null_print(photo_sch_tbl, 4, "Plot not sampled/missing")
 
 check_null_print(miss_photo_bolts, 4, "Photoplots missing bolts")
 
+check_null_print(mot_vs_photo_tbl, 4, "Photoplots missing cover")
+
 check_null_print(photoplot_tbl, 4, "Duplicate scoring")
 
 check_null_print(photoplot2_tbl, 4, "Years missing scores")
@@ -158,9 +119,6 @@ check_null_print(pctcov_sum_tbl, 4, "Total cover over 100")
 
 check_null_print(covsum0_tbl, 4, "Total cover sums to 0")
 
-check_null_print(photo_vs_mot_tbl, 4, "Photoplots missing motinv.")
-
-
 #check_null_print(spp_plot_tbl, 4, "Missing or dup. species cover") # hard to make sense of this one; 
 # replacing with schedule of sites and plots with records
 
@@ -169,7 +127,11 @@ check_null_print(photo_vs_mot_tbl, 4, "Photoplots missing motinv.")
 ```{r eval = photoplot_mi_include, results = 'asis'}
 cat("### Motile Inverts {.tabset} ", "\n\n")
 
+cat("<hr>")
+
 check_null_print(mint_sch_tbl, 4, "Plot not sampled/missing")
+
+check_null_print(photo_vs_mot_tbl, 4, "Photoplots missing motinv.")
 
 check_null_print(micnt_nas_tbl, 4, "Counts with NAs")
 
@@ -195,8 +157,11 @@ check_null_print(mi_cnt_miss_tbl, 4, "Fewer counts than meas.")
 
 ```
 
-### Echinoderms {.tabset}
 ```{r eval = echino_include, results = 'asis'}
+cat("### Echinoderms {.tabset}", "\n\n")
+
+cat("<hr>")
+
 check_null_print(ech_sch_tbl, 4, "Transect not sampled/missing")
 
 check_null_print(eccnt_nas_tbl, 4, "Counts with NAs")
@@ -217,13 +182,23 @@ check_null_print(echino_meas_miss_tbl, 4, "Fewer meas. than counts")
 
 check_null_print(echino_cnt_miss_tbl, 4, "Fewer counts than meas.")
 
-
 ```
 
 
-### Recruitment Plots
+```{r eval = barn_include, results = 'asis'}
+cat("### Barnacle Recruitment {.tabset}", "\n\n")
 
-No checks added yet
+cat("<hr>")
+
+check_null_print(barns_pre19_tbl, 4, "Dup/missing plots pre2019")
+
+check_null_print(barns_post19_tbl, 4, "Dup/missing plots post2019")
+
+check_null_print(barns_pre19_99_tbl, 4, "Counts outside 99pct pre2019")
+
+check_null_print(barns_post19_99_tbl, 4, "Counts outside 99pct post2019")
+
+```
 
 
 

@@ -29,7 +29,7 @@ library(htmltools)
 #library(DiagrammeR)
 ```
 
-```{r imports2, include = FALSE, cache = T}
+```{r imports2, include = FALSE, cache = F}
 importData()
 path = "Z:/PROJECTS/MONITORING/Rocky_Intertidal/NETN/5_Data/2_DataFiles/Temperature/Compiled_HT_water_temps_2011-2022/"
 importWaterTemp(path = path, simplify = T, buoy = T)
