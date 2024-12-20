@@ -975,7 +975,7 @@ barn_include <- tab_include(barn_check)
 
 
 #---- Final QC check table ----
-QC_cap <- paste0("Results of QC checks generated: <b>", time_gen, "</b>. Data source last modified: <b>",  db_version, "</b>.")
+QC_cap <- paste0("Results of QC checks. Generated: <b>", time_gen, "</b>. Data source last modified: <b>",  db_version, "</b>.")
 
 QC_check_table <- kable(QC_table, format = 'html', align = 'c', caption = QC_cap,
                         col.names = c("Data Tab", "Check Description", "Number of Records")) |>

@@ -31,10 +31,10 @@ library(odbc)
 db <- dbConnect(drv = odbc(), dsn = "rocky_FE")
 dblist <- odbcListObjects(db)
   dp <- dblist$name[grepl("DataPackage", dblist$name)]
-db_version <- format(file.info(dp)$mtime, "%m/%d/%Y %I:%M")
+db_version <- format(file.info(dp)$mtime, "%m/%d/%Y %H:%M")
 dbDisconnect(db)
 
-time_gen <- format(Sys.time(), "%m/%d/%Y %I:%M")
+time_gen <- format(Sys.time(), "%m/%d/%Y %H:%M")
 
 # Import data and set params
 importData()
