@@ -10,7 +10,8 @@ params:
   year_curr: 2024 # Current year of sampling
   park: "ACAD"
 ---
-<!-- This QC report checks all years of records from 2013: year_curr -->
+<!-- This QC report checks all years of records from 2013: year_curr. If you want to limit year range, you can change the year 
+in line 43 below -->
 ```{r setup, include = F}
 knitr::opts_chunk$set(echo = FALSE)
 options(knitr.kable.NA = '', scipen = 100)
@@ -113,7 +114,7 @@ cat("### Photoplot Cover {.tabset} ", "\n\n")
 
 cat("<hr>")
 
-check_null_print(photo_sch_tbl, 4, "Plot not sampled ormissing")
+check_null_print(photo_sch_tbl, 4, "Plot not sampled or missing")
 
 check_null_print(miss_photo_bolts, 4, "Photoplots missing bolts")
 

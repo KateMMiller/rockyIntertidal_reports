@@ -8,10 +8,10 @@ output:
 
 params:
   year_curr: 2024 # Current year of sampling
-  park: "ACAD"
-  all_years: TRUE # If FALSE, only reports on year_curr; TRUE reports on all years; Not fully enabled for FALSE yet.
-  
+  park: "BOHA"
 ---
+<!-- This QC report checks the current year, set as year_curr parameter against previous years, starting 2013: year_curr - 1 -->
+
 ```{r setup, include = F}
 knitr::opts_chunk$set(echo = FALSE)
 options(knitr.kable.NA = '', scipen = 100)
@@ -40,20 +40,18 @@ time_gen <- format(Sys.time(), "%m/%d/%Y %H:%M")
 importData()
 park = params$park
 year_curr = params$year_curr
-year = 2013:year_curr
+year_hist = 2013:(year_curr-1)
+year_range = 2013:year_curr
 
-# year = 2013:2024
-# park = "ACAD"
-# year_curr = 2024
+arglist <- list(park = park, years = year_range)
+arglist_curr <- list(park = park, years = year_curr)
 
-arglist <- list(park = park, years = year)
-
-locs <- do.call(getPIBoltDistance, arglist) |>
+locs <- do.call(getPIBoltDistance, arglist_curr) |>
   select(SiteCode) |> unique() |> c() #|> as.character()
 
 ```
 
-Rocky intertidal Quality Control checking for `r params$park` and `r paste(year, collapse = ", ")`.  {.tabset .tabset-pills}
+Rocky intertidal Quality Control checking for `r params$park` and `r paste0(year_curr)`.  {.tabset .tabset-pills}
 ---
 ```{r, include = F, results = 'hide'}
 source('park_QC_checks_compile.R')
@@ -114,7 +112,7 @@ cat("### Photoplot Cover {.tabset} ", "\n\n")
 
 cat("<hr>")
 
-check_null_print(photo_sch_tbl, 4, "Plot not sampled ormissing")
+check_null_print(photo_sch_tbl, 4, "Plot not sampled or missing")
 
 check_null_print(miss_photo_bolts, 4, "Photoplots missing bolts")
 
@@ -205,15 +203,11 @@ cat("### Barnacle Recruitment {.tabset}", "\n\n")
 
 cat("<hr>")
 
-check_null_print(barns_pre19_tbl, 4, "Dup. or missing plots pre2019")
-
 check_null_print(barns_post19_tbl, 4, "Dup. or missing plots post2019")
 
 check_null_print(barn_miss_dt_tbl, 4, "Missing date taken")
 
 check_null_print(barn_miss_ds_tbl, 4, "Missing date scored")
-
-check_null_print(barns_pre19_99_tbl, 4, "Counts outside 99pct pre2019")
 
 check_null_print(barns_post19_99_tbl, 4, "Counts outside 99pct post2019")
 
