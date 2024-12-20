@@ -22,10 +22,21 @@ library(rockyIntertidal)
 library(tidyverse)
 library(knitr)
 library(kableExtra)
-#library(htmltools) # for tagList
 library(DT)
 library(htmlwidgets)
+library(DBI)
+library(odbc)
 
+# Extract modified timestamp from DSN
+db <- dbConnect(drv = odbc(), dsn = "rocky_FE")
+dblist <- odbcListObjects(db)
+  dp <- dblist$name[grepl("DataPackage", dblist$name)]
+db_version <- format(file.info(dp)$mtime, "%m/%d/%Y %I:%M")
+dbDisconnect(db)
+
+time_gen <- format(Sys.time(), "%m/%d/%Y %I:%M")
+
+# Import data and set params
 importData()
 park = params$park
 year_curr = params$year_curr
@@ -39,11 +50,11 @@ arglist <- list(park = park, years = year)
 
 locs <- do.call(getPIBoltDistance, arglist) |>
   select(SiteCode) |> unique() |> c() #|> as.character()
+
 ```
 
-Rocky intertidal Quality Control checking for `r params$park` and `r paste(year, collapse = ", ")` {.tabset .tabset-pills}
+Rocky intertidal Quality Control checking for `r params$park` and `r paste(year, collapse = ", ")`.  {.tabset .tabset-pills}
 ---
-
 ```{r, include = F, results = 'hide'}
 source('park_QC_checks_compile.R')
 ```
