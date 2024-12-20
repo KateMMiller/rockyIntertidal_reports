@@ -1,0 +1,222 @@
+---
+output:
+  html_document:
+    css: www/styles.css
+    anchor_sections: FALSE
+    includes:
+      in_header: "header_manual.html"
+
+params:
+  year_curr: 2024 # Current year of sampling
+  park: "ACAD"
+---
+<!-- This QC report checks all years of records from 2013: year_curr -->
+```{r setup, include = F}
+knitr::opts_chunk$set(echo = FALSE)
+options(knitr.kable.NA = '', scipen = 100)
+```
+
+```{r imports, include = FALSE}
+library(rockyIntertidal)
+library(tidyverse)
+library(knitr)
+library(kableExtra)
+library(DT)
+library(htmlwidgets)
+library(DBI)
+library(odbc)
+
+# Extract modified timestamp from DSN
+db <- dbConnect(drv = odbc(), dsn = "rocky_FE")
+dblist <- odbcListObjects(db)
+  dp <- dblist$name[grepl("DataPackage", dblist$name)]
+db_version <- format(file.info(dp)$mtime, "%m/%d/%Y %H:%M")
+dbDisconnect(db)
+
+time_gen <- format(Sys.time(), "%m/%d/%Y %H:%M")
+
+# Import data and set params
+importData()
+park = params$park
+year_curr = params$year_curr
+year = 2013:year_curr
+
+# year = 2013:2024
+# park = "ACAD"
+# year_curr = 2024
+
+arglist <- list(park = park, years = year)
+
+locs <- do.call(getPIBoltDistance, arglist) |>
+  select(SiteCode) |> unique() |> c() #|> as.character()
+
+```
+
+Rocky intertidal Quality Control checking for `r params$park` and `r paste(year, collapse = ", ")`.  {.tabset .tabset-pills}
+---
+```{r, include = F, results = 'hide'}
+source('park_QC_checks_compile_all_years.R')
+```
+
+
+### QC Checks {.tabset}
+
+<hr>
+
+#### Summary {.tabset}
+```{r}
+QC_check_table
+```
+
+```{r echo = F, eval = include_visit_table, results = 'asis'}
+cat("#### Compiled Notes", "\n")
+if(include_visit_table == TRUE){
+  #visit_table
+  visit_dt
+}
+```
+
+```{r eval = pit_include, results = 'asis'}
+cat("### Point Intercept Transects {.tabset} ", "\n\n")
+
+cat("<hr>")
+
+check_null_print(miss_bolt_elev_dist, 4, "Missing distance")
+  
+check_null_print(bolt_check_tbl, 4, "Impossible elev. X dist.")
+
+check_null_print(later_bolt_dist_0, 4, "0 after first bolt")
+
+check_null_print(nonchron_bolt_dist, 4, "Bolts out of order")
+
+check_null_print(missing_bolts, 4, "Missed bolts")
+
+check_null_print(missing_trans, 4, "Missed transects")
+
+check_null_print(short_trans, 4, "Short transects")
+
+check_null_print(long_trans, 4, "Long transects")
+
+check_null_print(spp_high_elev, 4, "Spp. elev. above hist. range")
+
+check_null_print(spp_low_elev, 4, "Spp. elev. below hist. range")
+```
+
+
+```{r include = F, results = 'hide'}
+# Nesting substrate and motile inverts within photoplots
+photoplot_eval <- ifelse(photoplot_include == TRUE | photoplot_mi_include == TRUE, TRUE, FALSE)
+```
+
+```{r eval = photoplot_include, results = 'asis'}
+cat("### Photoplot Cover {.tabset} ", "\n\n")
+
+cat("<hr>")
+
+check_null_print(photo_sch_tbl, 4, "Plot not sampled ormissing")
+
+check_null_print(miss_photo_bolts, 4, "Photoplots missing bolts")
+
+check_null_print(mot_vs_photo_tbl, 4, "Photoplots missing cover")
+
+check_null_print(photoplot_tbl, 4, "Duplicate scoring")
+
+check_null_print(photoplot2_tbl, 4, "Years missing scores")
+
+check_null_print(covsum_tbl, 4, "Total cover under 100")
+
+check_null_print(pctcov_sum_tbl, 4, "Total cover over 100")
+
+check_null_print(spp_plot_tbl, 4, "Dup. or Missing species")
+
+check_null_print(covsum0_tbl, 4, "Total cover sums to 0")
+
+#check_null_print(spp_plot_tbl, 4, "Missing or dup. species cover") # hard to make sense of this one; 
+# replacing with schedule of sites and plots with records
+
+```
+
+```{r eval = photoplot_mi_include, results = 'asis'}
+cat("### Motile Inverts {.tabset} ", "\n\n")
+
+cat("<hr>")
+
+check_null_print(mint_sch_tbl, 4, "Plot not sampled or missing")
+
+check_null_print(photo_vs_mot_tbl, 4, "Photoplots missing motinv.")
+
+check_null_print(micnt_nas_tbl, 4, "Counts with NAs")
+
+check_null_print(mimeas_nas_tbl, 4, "Meas. with NAs")
+
+check_null_print(mimeas_0_tbl, 4, "Meas. of 0")
+
+check_null_print(mimeas11_tbl, 4, "Meas. counts over 10")
+
+check_null_print(mi_crab_tbl, 4, "Crabs with meas.")
+
+check_null_print(mi_meas_miss_tbl, 4, "Fewer meas. than counts")
+
+check_null_print(mi_cnt_miss_tbl, 4, "Fewer counts than meas.")
+
+check_null_print(mimeas_99.9_tbl, 4, "Meas. over 99.9cm")
+
+check_null_print(mimeas_99_tbl, 4, "Meas. over 99pct")
+
+check_null_print(micnt_99dam_tbl, 4, "Damage counts over 99pct")
+
+check_null_print(micnt_99nodam_tbl, 4, "No.Damage counts over 99pct")
+
+
+```
+
+```{r eval = echino_include, results = 'asis'}
+cat("### Echinoderms {.tabset}", "\n\n")
+
+cat("<hr>")
+
+check_null_print(ech_sch_tbl, 4, "Transect not sampled or missing")
+
+check_null_print(eccnt_nas_tbl, 4, "Counts with NAs")
+
+check_null_print(ecmeas_nas_tbl, 4, "Meas. with NAs")
+
+check_null_print(ecmeas_0_tbl, 4, "Meas. of 0")
+
+check_null_print(echinomeas11_tbl, 4, "Meas. counts over 10")
+
+check_null_print(echino_meas_miss_tbl, 4, "Fewer meas. than counts")
+
+check_null_print(echino_cnt_miss_tbl, 4, "Fewer counts than meas.")
+
+check_null_print(eccnt_99_tbl, 4, "Counts over 99pct")
+
+check_null_print(ecmeas_99.9_tbl, 4, "Meas. over 99.9cm")
+
+check_null_print(ecmeas_99_tbl, 4, "Meas. over 99pct")
+
+
+```
+
+
+```{r eval = barn_include, results = 'asis'}
+cat("### Barnacle Recruitment {.tabset}", "\n\n")
+
+cat("<hr>")
+
+check_null_print(barns_pre19_tbl, 4, "Dup. or missing plots pre2019")
+
+check_null_print(barns_post19_tbl, 4, "Dup. or missing plots post2019")
+
+check_null_print(barn_miss_dt_tbl, 4, "Missing date taken")
+
+check_null_print(barn_miss_ds_tbl, 4, "Missing date scored")
+
+check_null_print(barns_pre19_99_tbl, 4, "Counts outside 99pct pre2019")
+
+check_null_print(barns_post19_99_tbl, 4, "Counts outside 99pct post2019")
+
+```
+
+
+
